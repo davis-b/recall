@@ -67,47 +67,61 @@ pub fn main() anyerror!void {
 
     const initial_scan_start = std.time.milliTimestamp();
     var potential_addresses = (try memory.parseSegments(allocator, pid, &memory_segments, needle)) orelse {
-        print("No matches!\n", .{});
+        print("No match found. Exiting.\n", .{});
         return;
     };
     defer potential_addresses.deinit();
     print("Initial scan took {} ms\n", .{std.time.milliTimestamp() - initial_scan_start});
 
+    const maybe_final_address = try findMatch(needle_typeinfo, pid, &potential_addresses);
+    if (maybe_final_address) |addr| {
+        print("Match found at: {}\n", .{addr});
+        try handleFinalMatch(needle_typeinfo, pid, addr);
+    } else {
+        print("No match found. Exiting.\n", .{});
+    }
+}
+
+/// Allows user to repeatedly view the value located at the needle address.
+fn handleFinalMatch(NT: input.NeedleType, pid: os.pid_t, needle_address: usize) !void {
+    var buffer = [_]u8{0} ** 400;
+    while (true) {
+        if (NT.T == .string) {
+            print("Please enter the number of characters you would like to read\n", .{});
+        } else {
+            print("Enter any character to print value at needle address, or nothing to exit\n", .{});
+        }
+        const user_input = input.getStdin() orelse break;
+
+        var str_len: usize = 0;
+        if (NT.T == .string) {
+            const peek_length = std.fmt.parseInt(usize, user_input, 10) catch {
+                continue;
+            };
+            str_len = try memory.readRemote(buffer[0..peek_length], pid, needle_address);
+        } else {
+            var needle_bytes = [_]u8{0} ** input.NeedleType.max_bytes;
+            _ = try memory.readRemote(needle_bytes[0..NT.bytes], pid, needle_address);
+            str_len = try bytesToString(NT, needle_bytes[0..NT.bytes], buffer[0..]);
+        }
+        print("value is: {}\n", .{buffer[0..str_len]});
+    }
+}
+
+/// Using user input, filters potential addresses until we have a single one remaining.
+fn findMatch(NT: input.NeedleType, pid: os.pid_t, potential_addresses: *memory.Addresses) !?usize {
     while (potential_addresses.items.len > 1) {
         print("Potential addresses: {}\n", .{potential_addresses.items.len});
         if (potential_addresses.items.len < 5) {
             for (potential_addresses.items) |pa| warn("pa: {} \n", .{pa});
         }
-        const new_needle: []const u8 = try input.askUserForValue(needle_typeinfo);
-        try memory.pruneAddresses(pid, new_needle, &potential_addresses);
+        const new_needle: []const u8 = try input.askUserForValue(NT);
+        try memory.pruneAddresses(pid, new_needle, potential_addresses);
     }
     if (potential_addresses.items.len == 1) {
-        const final_address = potential_addresses.items[0];
-        print("Match found at: {}\n", .{final_address});
-        var buffer = [_]u8{0} ** 400;
-        while (true) {
-            if (needle_typeinfo.T == .string) {
-                print("Please enter the number of characters you would like to read\n", .{});
-            } else {
-                print("Enter any character to print value at needle address, or nothing to exit\n", .{});
-            }
-            const user_input = input.getStdin() orelse break;
-
-            var str_len: usize = 0;
-            if (needle_typeinfo.T == .string) {
-                const peek_length = std.fmt.parseInt(usize, user_input, 10) catch {
-                    continue;
-                };
-                str_len = try memory.readRemote(buffer[0..peek_length], pid, final_address);
-            } else {
-                var needle_bytes = [_]u8{0} ** input.NeedleType.max_bytes;
-                _ = try memory.readRemote(needle_bytes[0..needle_typeinfo.bytes], pid, final_address);
-                str_len = try bytesToString(needle_typeinfo, needle_bytes[0..needle_typeinfo.bytes], buffer[0..]);
-            }
-            print("value is: {}\n", .{buffer[0..str_len]});
-        }
+        return potential_addresses.items[0];
     } else {
-        print("No matches remain!\n", .{});
+        return null;
     }
 }
 

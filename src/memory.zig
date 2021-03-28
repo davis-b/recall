@@ -6,7 +6,7 @@ const readv = @import("c.zig").readv;
 const MemSegments = @import("read_map.zig").Segments;
 const NeedleType = @import("input.zig").NeedleType;
 // TODO@Performance: A linked list is likely to offer better performance in the most common scenarios
-const Addresses = std.ArrayList(usize);
+pub const Addresses = std.ArrayList(usize);
 
 /// Looks through a dereferenced segment of memory for values that match our needle.
 /// Returns the index of the next match, or null if there are no remaining matches.
