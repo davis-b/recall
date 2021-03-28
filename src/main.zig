@@ -181,45 +181,6 @@ fn printHumanReadableByteCount(bytes: usize) void {
     }
 }
 
-fn findMatch(comptime T: type, potential_addresses: anytype) bool {
-    while (true) {
-        // const expected_value = input.getUserValue(T);
-        const expected_value: T = 10;
-
-        // loop through all potential memory addresses
-        removeNonMatches(T, potential_addresses, expected_value);
-
-        // The addresses have been narrowed down to a single possible result.
-        // We expect this to be what the user is looking for.
-        if (potential_addresses.len == 1) {
-            warn("a match has been found at {x}\n", .{address});
-            return true;
-        }
-        // No matches were found
-        if (potential_addresses.len == 0) {
-            // We should rewind time for the user in this scenario.
-            // This is how:
-            // Store all addresses that we plan to remove.
-            // Do not remove addresses from iterator in this scenario
-            warn("no matches were found!", .{});
-            return false;
-        }
-        // types.giveDataTypes(T, allocator, all_addresses, potential_addresses);
-    }
-}
-
-fn removeNonMatches(comptime T: type, node: anytype, expected_value: T) void {
-    while (node.next) |new_node| {
-        // Compare each address to our expected value
-        const address = new_node.value;
-        const value = memory.readValue(T, address);
-        if (expected_value != value)
-        // Not a match, remove them from the list of potential memory addresses
-            new_node.destroy(allocator, node);
-        node = new_node;
-    }
-}
-
 fn find_process_name(allocator: *std.mem.Allocator, pid: os.pid_t) ![]u8 {
     var path_buffer = [_]u8{0} ** 30;
     var fbs = std.io.fixedBufferStream(path_buffer[0..]);
