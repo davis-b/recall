@@ -2,55 +2,80 @@ const std = @import("std");
 const meta = std.meta;
 const print = std.debug.print;
 
-pub const NeedleType = struct {
-    pub const max_bytes = 16;
-    bytes: u8,
-    T: union(enum) {
-        // Bool represents whether or not the int is signed.
-        int: bool,
-        float: bool,
-        string: void,
-    },
+pub const NeedleType = union(enum) {
+    i8: i8,
+    i16: i16,
+    i32: i32,
+    i64: i64,
+    i128: i128,
+
+    u8: u8,
+    u16: u16,
+    u32: u32,
+    u64: u64,
+    u128: u128,
+
+    f16: f16,
+    f32: f32,
+    f64: f64,
+    f128: f128,
+
+    string: void,
 };
 
 pub fn parseStringForType(string: []const u8) !NeedleType {
     if (string.len == 0) return error.EmptyStringProvided;
 
-    var result = NeedleType{
-        .bytes = 0,
-        .T = undefined,
+    const Subtype = enum {
+        uint,
+        int,
+        float,
+        string,
     };
 
     const head = string[0];
-    switch (head) {
-        's' => result.T = .{ .string = undefined },
-        'u' => result.T = .{ .int = false },
-        'i' => result.T = .{ .int = true },
-        'f' => result.T = .{ .float = true },
+    const subtype = switch (head) {
+        's' => Subtype.string,
+        'i' => Subtype.int,
+        'u' => Subtype.uint,
+        'f' => Subtype.float,
         else => return error.InvalidTypeHint,
-    }
+    };
 
-    switch (result.T) {
-        .string => {},
-        .int, .float => {
+    switch (subtype) {
+        .string => return NeedleType{ .string = undefined },
+        .int, .uint, .float => {
             if (string.len == 1) return error.NoBitAmountProvided;
             const bits = std.fmt.parseInt(u8, string[1..], 10) catch return error.InvalidBitNumber;
-            if (result.T == .int) {
-                switch (bits) {
-                    8, 16, 32, 64, 128 => {},
-                    else => return error.InvalidBitCountForInt,
-                }
-                // if (bits > @typeInfo(usize).Int.bits) return error.RequestsTooManyBits;
-            } else {
-                switch (bits) {
-                    16, 32, 64, 128 => {},
-                    else => return error.InvalidBitCountForFloat,
-                }
-            }
-            result.bytes = bits / 8;
+
+            return switch (subtype) {
+                .string => unreachable,
+                .int => switch (bits) {
+                    8 => NeedleType{ .i8 = 0 },
+                    16 => NeedleType{ .i16 = 0 },
+                    32 => NeedleType{ .i32 = 0 },
+                    64 => NeedleType{ .i64 = 0 },
+                    128 => NeedleType{ .i128 = 0 },
+                    else => error.InvalidBitCountForInt,
+                },
+                .uint => switch (bits) {
+                    8 => NeedleType{ .u8 = 0 },
+                    16 => NeedleType{ .u16 = 0 },
+                    32 => NeedleType{ .u32 = 0 },
+                    64 => NeedleType{ .u64 = 0 },
+                    128 => NeedleType{ .u128 = 0 },
+                    else => error.InvalidBitCountForUInt,
+                },
+                .float => switch (bits) {
+                    16 => NeedleType{ .f16 = 0 },
+                    32 => NeedleType{ .f32 = 0 },
+                    64 => NeedleType{ .f64 = 0 },
+                    128 => NeedleType{ .f128 = 0 },
+                    else => error.InvalidBitCountForFloat,
+                },
+            };
         },
     }
-    return result;
 }
 
 pub fn askUserForType() NeedleType {
@@ -69,46 +94,25 @@ var user_value_buffer = [_]u8{0} ** 128;
 /// Thus, we have to go about this in a roundabout fashion.
 /// Eventually, we return the bytes representing the input value for the requested type.
 /// The bytes returned are global to this module and are not owned by the caller.
-pub fn askUserForValue(T: NeedleType) ![]const u8 {
-    print("Please enter value for {} of {} bytes > ", .{ std.meta.tagName(T.T), T.bytes });
+pub fn askUserForValue(NT: NeedleType) ![]const u8 {
+    print("Please enter value for {} > ", .{std.meta.tagName(NT)});
     const input = getStdin();
     var buffer = user_value_buffer[0..];
     if (input) |string| {
-        switch (T.T) {
-            .int => |signed| {
-                if (signed) {
-                    switch (T.bytes) {
-                        1 => try readStringAs(i8, string, buffer[0..]),
-                        2 => try readStringAs(i16, string, buffer[0..]),
-                        4 => try readStringAs(i32, string, buffer[0..]),
-                        8 => try readStringAs(i64, string, buffer[0..]),
-                        16 => try readStringAs(i128, string, buffer[0..]),
-                        else => @panic("Invalid signed int bit amount\n"),
-                    }
-                } else {
-                    switch (T.bytes) {
-                        1 => try readStringAs(u8, string, buffer[0..]),
-                        2 => try readStringAs(u16, string, buffer[0..]),
-                        4 => try readStringAs(u32, string, buffer[0..]),
-                        8 => try readStringAs(u64, string, buffer[0..]),
-                        16 => try readStringAs(u128, string, buffer[0..]),
-                        else => @panic("Invalid unsigned int bit amount\n"),
-                    }
-                }
-                return buffer[0..T.bytes];
-            },
-            .float => {
-                switch (T.bytes) {
-                    2 => try readStringAs(f16, string, buffer[0..]),
-                    4 => try readStringAs(f32, string, buffer[0..]),
-                    8 => try readStringAs(f64, string, buffer[0..]),
-                    16 => try readStringAs(f128, string, buffer[0..]),
-                    else => @panic("Invalid float bit amount\n"),
-                }
-                return buffer[0..T.bytes];
-            },
+        switch (NT) {
             .string => {
                 return string;
+            },
+            else => {
+                const tn = std.meta.tagName(NT);
+                const ti = @typeInfo(NeedleType).Union;
+                inline for (ti.fields) |f| {
+                    if (std.mem.eql(u8, f.name, tn)) {
+                        try readStringAs(f.field_type, string, buffer[0..]);
+                        return buffer[0..@sizeOf(f.field_type)];
+                    }
+                }
+                @panic("Highly unexpected situation. Our NeedleType union could not find a matching name on an active tag of itself.\n");
             },
         }
     } else {
@@ -131,7 +135,10 @@ fn readStringAs(comptime T: type, string: []const u8, buffer: []u8) !void {
             const bytes = std.mem.asBytes(&result);
             for (bytes) |b, index| buffer[index] = b;
         },
-        else => @compileError("Function called with invalid type"),
+        // Would prefer to have the 'Void' case handled by our 'else' clause.
+        // However, it gives compile errors in zig 0.7.1.
+        .Void => unreachable,
+        else => @compileError("Function called with invalid type " ++ @typeName(T)),
     }
 }
 

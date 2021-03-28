@@ -76,7 +76,7 @@ pub fn main() anyerror!void {
     const maybe_final_address = try findMatch(needle_typeinfo, pid, &potential_addresses);
     if (maybe_final_address) |addr| {
         print("Match found at: {}\n", .{addr});
-        try handleFinalMatch(needle_typeinfo, pid, addr);
+        // try handleFinalMatch(needle_typeinfo, pid, addr);
     } else {
         print("No match found. Exiting.\n", .{});
     }
