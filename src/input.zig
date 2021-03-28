@@ -51,26 +51,26 @@ pub fn parseStringForType(string: []const u8) !NeedleType {
             return switch (subtype) {
                 .string => unreachable,
                 .int => switch (bits) {
-                    8 => NeedleType{ .i8 = 0 },
-                    16 => NeedleType{ .i16 = 0 },
-                    32 => NeedleType{ .i32 = 0 },
-                    64 => NeedleType{ .i64 = 0 },
-                    128 => NeedleType{ .i128 = 0 },
+                    8 => NeedleType{ .i8 = undefined },
+                    16 => NeedleType{ .i16 = undefined },
+                    32 => NeedleType{ .i32 = undefined },
+                    64 => NeedleType{ .i64 = undefined },
+                    128 => NeedleType{ .i128 = undefined },
                     else => error.InvalidBitCountForInt,
                 },
                 .uint => switch (bits) {
-                    8 => NeedleType{ .u8 = 0 },
-                    16 => NeedleType{ .u16 = 0 },
-                    32 => NeedleType{ .u32 = 0 },
-                    64 => NeedleType{ .u64 = 0 },
-                    128 => NeedleType{ .u128 = 0 },
+                    8 => NeedleType{ .u8 = undefined },
+                    16 => NeedleType{ .u16 = undefined },
+                    32 => NeedleType{ .u32 = undefined },
+                    64 => NeedleType{ .u64 = undefined },
+                    128 => NeedleType{ .u128 = undefined },
                     else => error.InvalidBitCountForUInt,
                 },
                 .float => switch (bits) {
-                    16 => NeedleType{ .f16 = 0 },
-                    32 => NeedleType{ .f32 = 0 },
-                    64 => NeedleType{ .f64 = 0 },
-                    128 => NeedleType{ .f128 = 0 },
+                    16 => NeedleType{ .f16 = undefined },
+                    32 => NeedleType{ .f32 = undefined },
+                    64 => NeedleType{ .f64 = undefined },
+                    128 => NeedleType{ .f128 = undefined },
                     else => error.InvalidBitCountForFloat,
                 },
             };
@@ -119,6 +119,8 @@ pub fn askUserForValue(NT: NeedleType) ![]const u8 {
         return error.NoInputGiven;
     }
 }
+
+// TODO instead of using a buffer, we can now store the result in our NeedleType, thus allowing us to return the bytes directly. (Pass NT pointers for the memory to be consistent)
 
 /// Reads string as a specified type.
 /// Interprets result as bytes, which then
