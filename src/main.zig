@@ -1,0 +1,237 @@
+const std = @import("std");
+const os = std.os;
+const warn = std.debug.warn;
+const print = std.debug.print;
+
+const readv = @import("c.zig").readv;
+const memory = @import("memory.zig");
+const readMemMap = @import("read_map.zig").readMemMap;
+const input = @import("input.zig");
+
+fn help() void {
+    warn("User must supply pid and (type hint + bit length)\n", .{});
+    warn("Available type hints are: [i, u, f, s]\n", .{});
+    warn("i: signed integer\n", .{});
+    warn("u: unsigned integer\n", .{});
+    warn("f: float - Only available with bit lengths [16, 32, 64] \n", .{});
+    warn("s: string - Does not require a bit length\n", .{});
+    warn("Example Usage: {} 5005 u32\n", .{os.argv[0]});
+}
+
+pub fn main() anyerror!void {
+    if (os.argv.len < 3) {
+        help();
+        os.exit(2);
+    }
+
+    const pid = std.fmt.parseInt(os.pid_t, std.mem.span(os.argv[1]), 10) catch |err| {
+        warn("Failed parsing PID \"{}\". {}\n", .{ os.argv[1], err });
+        os.exit(2);
+    };
+    const needle_typeinfo = input.parseStringForType(std.mem.span(os.argv[2])) catch |err| {
+        warn("Failed parsing search type \"{}\". {}\n", .{ os.argv[2], err });
+        os.exit(2);
+    };
+
+    const allocator = std.heap.page_allocator; // Perhaps we should link with libc to use malloc
+
+    const st = std.time.milliTimestamp();
+    var memory_segments = readMemMap(allocator, pid) catch |err| {
+        switch (err) {
+            error.FileNotFound => {
+                warn("Process matching pid {} not found.\n", .{pid});
+                os.exit(1);
+            },
+            else => return err,
+        }
+    };
+    defer memory_segments.deinit();
+    defer for (memory_segments.items) |*i| if (i.name) |n| allocator.free(n);
+
+    const process_name = find_process_name(allocator, pid) catch null;
+    defer if (process_name) |pn| allocator.free(pn);
+
+    if (memory_segments.items.len == 0) {
+        print("No memory segments found for \"{}\", pid {}. Exiting\n", .{ process_name, pid });
+        return;
+    }
+    var total_memory: usize = 0;
+    for (memory_segments.items) |i, n| {
+        // if (i.name) |name| {
+        //     const bn = std.fs.path.basename(name);
+        //     // if (std.mem.startsWith(u8, bn, "lib") and std.mem.endsWith(u8, bn, ".so")) {
+        //     //     continue;
+        //     // }
+        //     // warn("seg #{} {}\n", .{ n, name });
+        // } else {
+        //     // warn("#{}\n", .{n});
+        // }
+        total_memory += i.len;
+    }
+    print("{} is using {} memory segments for a total of ", .{ process_name, memory_segments.items.len });
+    printHumanReadableByteCount(total_memory);
+    print("\n", .{});
+
+    const needle: []const u8 = try input.askUserForValue(needle_typeinfo);
+
+    const initial_scan_start = std.time.milliTimestamp();
+    var potential_addresses = (try memory.parseSegments(allocator, pid, &memory_segments, needle)) orelse {
+        print("No matches!\n", .{});
+        return;
+    };
+    defer potential_addresses.deinit();
+    print("Initial scan took {} ms\n", .{std.time.milliTimestamp() - initial_scan_start});
+
+    while (potential_addresses.items.len > 1) {
+        print("Potential addresses: {}\n", .{potential_addresses.items.len});
+        if (potential_addresses.items.len < 5) {
+            for (potential_addresses.items) |pa| warn("pa: {} \n", .{pa});
+        }
+        const new_needle: []const u8 = try input.askUserForValue(needle_typeinfo);
+        try memory.pruneAddresses(pid, new_needle, &potential_addresses);
+    }
+    if (potential_addresses.items.len == 1) {
+        const final_address = potential_addresses.items[0];
+        print("Match found at: {}\n", .{final_address});
+        var buffer = [_]u8{0} ** 400;
+        while (true) {
+            if (needle_typeinfo.T == .string) {
+                print("Please enter the number of characters you would like to read\n", .{});
+            } else {
+                print("Enter any character to print value at needle address, or nothing to exit\n", .{});
+            }
+            const user_input = input.getStdin() orelse break;
+
+            var read_bytes: usize = 0;
+            if (needle_typeinfo.T == .string) {
+                const peek_length = std.fmt.parseInt(usize, user_input, 10) catch {
+                    continue;
+                };
+                read_bytes = try memory.readRemote(buffer[0..peek_length], pid, final_address);
+            } else {
+                read_bytes = try needleToString(needle_typeinfo, buffer[0..], pid, final_address);
+            }
+            print("value is: {}\n", .{buffer[0..read_bytes]});
+        }
+    } else {
+        print("No matches remain!\n", .{});
+    }
+}
+
+/// Reads the value located at an address.
+/// Prints that value to the buffer as a string.
+/// Resolves the value type based on given NeedleType.
+fn needleToString(NT: input.NeedleType, buffer: []u8, pid: os.pid_t, addr: usize) !usize {
+    switch (NT.T) {
+        .string => unreachable,
+        .int => |signed| {
+            if (signed) {
+                return try switch (NT.bytes) {
+                    1 => memory.readToBufferAs(i8, buffer, pid, addr),
+                    2 => memory.readToBufferAs(i16, buffer, pid, addr),
+                    4 => memory.readToBufferAs(i32, buffer, pid, addr),
+                    8 => memory.readToBufferAs(i64, buffer, pid, addr),
+                    16 => memory.readToBufferAs(i128, buffer, pid, addr),
+                    else => unreachable,
+                };
+            } else {
+                return try switch (NT.bytes) {
+                    1 => memory.readToBufferAs(u8, buffer, pid, addr),
+                    2 => memory.readToBufferAs(u16, buffer, pid, addr),
+                    4 => memory.readToBufferAs(u32, buffer, pid, addr),
+                    8 => memory.readToBufferAs(u64, buffer, pid, addr),
+                    16 => memory.readToBufferAs(u128, buffer, pid, addr),
+                    else => unreachable,
+                };
+            }
+        },
+        .float => {
+            return try switch (NT.bytes) {
+                2 => memory.readToBufferAs(f16, buffer, pid, addr),
+                4 => memory.readToBufferAs(f32, buffer, pid, addr),
+                8 => memory.readToBufferAs(f64, buffer, pid, addr),
+                16 => memory.readToBufferAs(f128, buffer, pid, addr),
+                else => unreachable,
+            };
+        },
+    }
+}
+
+// Zig std lib provides a built-in alternative, "{B:.2}".
+// However, I am unhappy with its output, thus we have this.
+// For reference, 500MB would be printed as 0.50GB.
+fn printHumanReadableByteCount(bytes: usize) void {
+    const kb_limit = 1000 * 1000;
+    const bytes_per_kb = 1000;
+
+    const mb_limit = kb_limit * 1000;
+    const bytes_per_mb = bytes_per_kb * 1000;
+
+    const bytes_per_gb = bytes_per_mb * 1000;
+
+    const fbytes = @intToFloat(f64, bytes);
+    if (bytes < 1000) {
+        print("{d:.2} B", .{bytes});
+    } else if (bytes < kb_limit) {
+        print("{d:.2} KB", .{fbytes / bytes_per_kb});
+    } else if (bytes < mb_limit) {
+        print("{d:.2} MB", .{fbytes / bytes_per_mb});
+    } else {
+        print("{d:.2} GB", .{fbytes / bytes_per_gb});
+    }
+}
+
+fn findMatch(comptime T: type, potential_addresses: anytype) bool {
+    while (true) {
+        // const expected_value = input.getUserValue(T);
+        const expected_value: T = 10;
+
+        // loop through all potential memory addresses
+        removeNonMatches(T, potential_addresses, expected_value);
+
+        // The addresses have been narrowed down to a single possible result.
+        // We expect this to be what the user is looking for.
+        if (potential_addresses.len == 1) {
+            warn("a match has been found at {x}\n", .{address});
+            return true;
+        }
+        // No matches were found
+        if (potential_addresses.len == 0) {
+            // We should rewind time for the user in this scenario.
+            // This is how:
+            // Store all addresses that we plan to remove.
+            // Do not remove addresses from iterator in this scenario
+            warn("no matches were found!", .{});
+            return false;
+        }
+        // types.giveDataTypes(T, allocator, all_addresses, potential_addresses);
+    }
+}
+
+fn removeNonMatches(comptime T: type, node: anytype, expected_value: T) void {
+    while (node.next) |new_node| {
+        // Compare each address to our expected value
+        const address = new_node.value;
+        const value = memory.readValue(T, address);
+        if (expected_value != value)
+        // Not a match, remove them from the list of potential memory addresses
+            new_node.destroy(allocator, node);
+        node = new_node;
+    }
+}
+
+fn find_process_name(allocator: *std.mem.Allocator, pid: os.pid_t) ![]u8 {
+    var path_buffer = [_]u8{0} ** 30;
+    var fbs = std.io.fixedBufferStream(path_buffer[0..]);
+    try std.fmt.format(fbs.outStream(), "/proc/{}/comm", .{pid});
+    const path = path_buffer[0..fbs.pos];
+
+    const fd = try os.open(path, 0, os.O_RDONLY);
+    defer os.close(fd);
+    var file = std.fs.File{ .handle = fd };
+    var name = try file.readToEndAlloc(allocator, 1000);
+    if (std.mem.endsWith(u8, name, "\n")) {
+        name = allocator.shrink(name, name.len - 1);
+    }
+    return name;
+}
