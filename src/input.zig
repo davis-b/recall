@@ -3,7 +3,8 @@ const meta = std.meta;
 const print = std.debug.print;
 
 pub const NeedleType = struct {
-    bytes: u16,
+    pub const max_bytes = 16;
+    bytes: u8,
     T: union(enum) {
         // Bool represents whether or not the int is signed.
         int: bool,
@@ -33,7 +34,7 @@ pub fn parseStringForType(string: []const u8) !NeedleType {
         .string => {},
         .int, .float => {
             if (string.len == 1) return error.NoBitAmountProvided;
-            const bits = std.fmt.parseInt(u16, string[1..], 10) catch return error.InvalidBitNumber;
+            const bits = std.fmt.parseInt(u8, string[1..], 10) catch return error.InvalidBitNumber;
             if (result.T == .int) {
                 switch (bits) {
                     8, 16, 32, 64, 128 => {},

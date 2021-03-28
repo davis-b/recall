@@ -102,59 +102,68 @@ pub fn main() anyerror!void {
             }
             const user_input = input.getStdin() orelse break;
 
-            var value_str_len: usize = 0;
+            var str_len: usize = 0;
             if (needle_typeinfo.T == .string) {
                 const peek_length = std.fmt.parseInt(usize, user_input, 10) catch {
                     continue;
                 };
-                value_str_len = try memory.readRemote(buffer[0..peek_length], pid, final_address);
+                str_len = try memory.readRemote(buffer[0..peek_length], pid, final_address);
             } else {
-                value_str_len = try needleToString(needle_typeinfo, buffer[0..], pid, final_address);
+                var needle_bytes = [_]u8{0} ** input.NeedleType.max_bytes;
+                _ = try memory.readRemote(needle_bytes[0..needle_typeinfo.bytes], pid, final_address);
+                str_len = try bytesToString(needle_typeinfo, needle_bytes[0..needle_typeinfo.bytes], buffer[0..]);
             }
-            print("value is: {}\n", .{buffer[0..value_str_len]});
+            print("value is: {}\n", .{buffer[0..str_len]});
         }
     } else {
         print("No matches remain!\n", .{});
     }
 }
 
-/// Reads the value located at an address.
+/// Reads the given bytes as a type appropriate for the given NeedleType.
 /// Prints that value to the buffer as a string.
-/// Resolves the value type based on given NeedleType.
-fn needleToString(NT: input.NeedleType, buffer: []u8, pid: os.pid_t, addr: usize) !usize {
+/// Returns the number of characters written to buffer.
+fn bytesToString(NT: input.NeedleType, bytes: []u8, buffer: []u8) !usize {
     switch (NT.T) {
         .string => unreachable,
         .int => |signed| {
             if (signed) {
                 return try switch (NT.bytes) {
-                    1 => memory.readToBufferAs(i8, buffer, pid, addr),
-                    2 => memory.readToBufferAs(i16, buffer, pid, addr),
-                    4 => memory.readToBufferAs(i32, buffer, pid, addr),
-                    8 => memory.readToBufferAs(i64, buffer, pid, addr),
-                    16 => memory.readToBufferAs(i128, buffer, pid, addr),
+                    1 => printToBufferAs(i8, bytes, buffer),
+                    2 => printToBufferAs(i16, bytes, buffer),
+                    4 => printToBufferAs(i32, bytes, buffer),
+                    8 => printToBufferAs(i64, bytes, buffer),
+                    16 => printToBufferAs(i128, bytes, buffer),
                     else => unreachable,
                 };
             } else {
                 return try switch (NT.bytes) {
-                    1 => memory.readToBufferAs(u8, buffer, pid, addr),
-                    2 => memory.readToBufferAs(u16, buffer, pid, addr),
-                    4 => memory.readToBufferAs(u32, buffer, pid, addr),
-                    8 => memory.readToBufferAs(u64, buffer, pid, addr),
-                    16 => memory.readToBufferAs(u128, buffer, pid, addr),
+                    1 => printToBufferAs(u8, bytes, buffer),
+                    2 => printToBufferAs(u16, bytes, buffer),
+                    4 => printToBufferAs(u32, bytes, buffer),
+                    8 => printToBufferAs(u64, bytes, buffer),
+                    16 => printToBufferAs(u128, bytes, buffer),
                     else => unreachable,
                 };
             }
         },
         .float => {
             return try switch (NT.bytes) {
-                2 => memory.readToBufferAs(f16, buffer, pid, addr),
-                4 => memory.readToBufferAs(f32, buffer, pid, addr),
-                8 => memory.readToBufferAs(f64, buffer, pid, addr),
-                16 => memory.readToBufferAs(f128, buffer, pid, addr),
+                2 => printToBufferAs(f16, bytes, buffer),
+                4 => printToBufferAs(f32, bytes, buffer),
+                8 => printToBufferAs(f64, bytes, buffer),
+                16 => printToBufferAs(f128, bytes, buffer),
                 else => unreachable,
             };
         },
     }
+}
+
+/// Takes a type, bytes that will turn into that type, and a buffer to print to.
+/// Transforms those bytes into that type, and then prints that type to the out buffer.
+fn printToBufferAs(comptime T: type, bytes: []u8, out: []u8) !usize {
+    const result = @ptrCast(*align(1) T, bytes[0..]).*;
+    return (try std.fmt.bufPrint(out, "{}", .{result})).len;
 }
 
 // Zig std lib provides a built-in alternative, "{B:.2}".
