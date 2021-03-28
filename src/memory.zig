@@ -5,7 +5,7 @@ const warn = std.debug.warn;
 const readv = @import("c.zig").readv;
 const MemSegments = @import("read_map.zig").Segments;
 const NeedleType = @import("input.zig").NeedleType;
-// TODO: A linked list is likely to offer better performance in the most common scenarios
+// TODO@Performance: A linked list is likely to offer better performance in the most common scenarios
 const Addresses = std.ArrayList(usize);
 
 /// Looks through a dereferenced segment of memory for values that match our needle.
@@ -71,7 +71,7 @@ pub fn parseSegments(allocator: *std.mem.Allocator, pid: os.pid_t, segments: *Me
     }
 }
 
-// TODO
+// TODO@Performance
 // it might be faster to simply readv the entire memory segment from the target process, at least when we're dealing with large haystacks.
 // A single larger than necessary read will be faster than many small reads
 pub fn pruneAddresses(pid: os.pid_t, needle: []const u8, haystack: *Addresses) !void {
