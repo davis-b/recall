@@ -102,16 +102,16 @@ pub fn main() anyerror!void {
             }
             const user_input = input.getStdin() orelse break;
 
-            var read_bytes: usize = 0;
+            var value_str_len: usize = 0;
             if (needle_typeinfo.T == .string) {
                 const peek_length = std.fmt.parseInt(usize, user_input, 10) catch {
                     continue;
                 };
-                read_bytes = try memory.readRemote(buffer[0..peek_length], pid, final_address);
+                value_str_len = try memory.readRemote(buffer[0..peek_length], pid, final_address);
             } else {
-                read_bytes = try needleToString(needle_typeinfo, buffer[0..], pid, final_address);
+                value_str_len = try needleToString(needle_typeinfo, buffer[0..], pid, final_address);
             }
-            print("value is: {}\n", .{buffer[0..read_bytes]});
+            print("value is: {}\n", .{buffer[0..value_str_len]});
         }
     } else {
         print("No matches remain!\n", .{});
