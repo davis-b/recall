@@ -57,15 +57,6 @@ pub fn main() anyerror!void {
     }
     var total_memory: usize = 0;
     for (memory_segments.items) |i, n| {
-        // if (i.name) |name| {
-        //     const bn = std.fs.path.basename(name);
-        //     // if (std.mem.startsWith(u8, bn, "lib") and std.mem.endsWith(u8, bn, ".so")) {
-        //     //     continue;
-        //     // }
-        //     // warn("seg #{} {}\n", .{ n, name });
-        // } else {
-        //     // warn("#{}\n", .{n});
-        // }
         total_memory += i.len;
     }
     print("{} is using {} memory segments for a total of ", .{ process_name, memory_segments.items.len });
