@@ -29,7 +29,7 @@ pub fn main() anyerror!void {
         warn("Failed parsing PID \"{}\". {}\n", .{ os.argv[1], err });
         os.exit(2);
     };
-    const needle_typeinfo = input.parseStringForType(std.mem.span(os.argv[2])) catch |err| {
+    var needle_typeinfo = input.parseStringForType(std.mem.span(os.argv[2])) catch |err| {
         warn("Failed parsing search type \"{}\". {}\n", .{ os.argv[2], err });
         os.exit(2);
     };
@@ -64,7 +64,7 @@ pub fn main() anyerror!void {
     printHumanReadableByteCount(total_memory);
     print("\n", .{});
 
-    const needle: []const u8 = try input.askUserForValue(needle_typeinfo);
+    const needle: []const u8 = try input.askUserForValue(&needle_typeinfo);
 
     const initial_scan_start = std.time.milliTimestamp();
     var potential_addresses = (try memory.parseSegments(allocator, pid, &memory_segments, needle)) orelse {
@@ -116,7 +116,8 @@ fn findMatch(NT: Needle, pid: os.pid_t, potential_addresses: *memory.Addresses) 
         if (potential_addresses.items.len < 5) {
             for (potential_addresses.items) |pa| warn("pa: {} \n", .{pa});
         }
-        const new_needle: []const u8 = try input.askUserForValue(NT);
+        var buffer = NT;
+        const new_needle: []const u8 = try input.askUserForValue(&buffer);
         try memory.pruneAddresses(pid, new_needle, potential_addresses);
     }
     if (potential_addresses.items.len == 1) {

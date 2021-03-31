@@ -2,6 +2,7 @@ const std = @import("std");
 const meta = std.meta;
 const print = std.debug.print;
 const Needle = @import("needle.zig").Needle;
+const call_fn_with_union_type = @import("needle.zig").call_fn_with_union_type;
 
 pub fn parseStringForType(string: []const u8) !Needle {
     if (string.len == 0) return error.EmptyStringProvided;
@@ -74,25 +75,17 @@ var user_value_buffer = [_]u8{0} ** 128;
 /// Thus, we have to go about this in a roundabout fashion.
 /// Eventually, we return the bytes representing the input value for the requested type.
 /// The bytes returned are global to this module and are not owned by the caller.
-pub fn askUserForValue(NT: NeedleType) ![]const u8 {
-    print("Please enter value for {} > ", .{std.meta.tagName(NT)});
-    const input = getStdin();
+pub fn askUserForValue(needle: *Needle) ![]const u8 {
+    print("Please enter value for {} > ", .{std.meta.tagName(needle.*)});
+    const maybe_input = getStdin();
     var buffer = user_value_buffer[0..];
-    if (input) |string| {
-        switch (NT) {
+    if (maybe_input) |input| {
+        switch (needle.*) {
             .string => {
-                return string;
+                return input;
             },
             else => {
-                const tn = std.meta.tagName(NT);
-                const ti = @typeInfo(NeedleType).Union;
-                inline for (ti.fields) |f| {
-                    if (std.mem.eql(u8, f.name, tn)) {
-                        try readStringAs(f.field_type, string, buffer[0..]);
-                        return buffer[0..@sizeOf(f.field_type)];
-                    }
-                }
-                @panic("Highly unexpected situation. Our NeedleType union could not find a matching name on an active tag of itself.\n");
+                return try call_fn_with_union_type(needle.*, anyerror![]const u8, stringToType, .{ input, needle });
             },
         }
     } else {
@@ -100,22 +93,33 @@ pub fn askUserForValue(NT: NeedleType) ![]const u8 {
     }
 }
 
-// TODO instead of using a buffer, we can now store the result in our NeedleType, thus allowing us to return the bytes directly. (Pass NT pointers for the memory to be consistent)
-
 /// Reads string as a specified type.
-/// Interprets result as bytes, which then
-///  get moved into user_value_buffer.
-fn readStringAs(comptime T: type, string: []const u8, buffer: []u8) !void {
+/// Sets the needle's value to that result.
+/// Reinterprets result as bytes, which then get returned.
+/// Returned bytes are simply another representation of the needle data.
+/// Therefore, they will change as the needle does, and they do not need to be free'd.
+fn stringToType(comptime T: type, string: []const u8, needle: *Needle) ![]const u8 {
+    const tn = @tagName(needle.*);
     switch (@typeInfo(T)) {
         .Int => |i| {
             const result = try std.fmt.parseInt(T, string, 10);
-            const bytes = std.mem.asBytes(&result);
-            for (bytes) |b, index| buffer[index] = b;
+            inline for (@typeInfo(Needle).Union.fields) |field| {
+                if (field.field_type == T) {
+                    needle.* = @unionInit(Needle, field.name, result);
+                    return std.mem.asBytes(&@field(needle, field.name));
+                }
+            }
+            unreachable;
         },
         .Float => |f| {
             const result = try std.fmt.parseFloat(T, string);
-            const bytes = std.mem.asBytes(&result);
-            for (bytes) |b, index| buffer[index] = b;
+            inline for (@typeInfo(Needle).Union.fields) |field| {
+                if (field.field_type == T) {
+                    needle.* = @unionInit(Needle, field.name, result);
+                    return std.mem.asBytes(&@field(needle, field.name));
+                }
+            }
+            unreachable;
         },
         // Would prefer to have the 'Void' case handled by our 'else' clause.
         // However, it gives compile errors in zig 0.7.1.
