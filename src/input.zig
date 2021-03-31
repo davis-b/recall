@@ -1,29 +1,9 @@
 const std = @import("std");
 const meta = std.meta;
 const print = std.debug.print;
+const Needle = @import("needle.zig").Needle;
 
-pub const NeedleType = union(enum) {
-    i8: i8,
-    i16: i16,
-    i32: i32,
-    i64: i64,
-    i128: i128,
-
-    u8: u8,
-    u16: u16,
-    u32: u32,
-    u64: u64,
-    u128: u128,
-
-    f16: f16,
-    f32: f32,
-    f64: f64,
-    f128: f128,
-
-    string: void,
-};
-
-pub fn parseStringForType(string: []const u8) !NeedleType {
+pub fn parseStringForType(string: []const u8) !Needle {
     if (string.len == 0) return error.EmptyStringProvided;
 
     const Subtype = enum {
@@ -43,7 +23,7 @@ pub fn parseStringForType(string: []const u8) !NeedleType {
     };
 
     switch (subtype) {
-        .string => return NeedleType{ .string = undefined },
+        .string => return Needle{ .string = undefined },
         .int, .uint, .float => {
             if (string.len == 1) return error.NoBitAmountProvided;
             const bits = std.fmt.parseInt(u8, string[1..], 10) catch return error.InvalidBitNumber;
@@ -51,26 +31,26 @@ pub fn parseStringForType(string: []const u8) !NeedleType {
             return switch (subtype) {
                 .string => unreachable,
                 .int => switch (bits) {
-                    8 => NeedleType{ .i8 = undefined },
-                    16 => NeedleType{ .i16 = undefined },
-                    32 => NeedleType{ .i32 = undefined },
-                    64 => NeedleType{ .i64 = undefined },
-                    128 => NeedleType{ .i128 = undefined },
+                    8 => Needle{ .i8 = undefined },
+                    16 => Needle{ .i16 = undefined },
+                    32 => Needle{ .i32 = undefined },
+                    64 => Needle{ .i64 = undefined },
+                    128 => Needle{ .i128 = undefined },
                     else => error.InvalidBitCountForInt,
                 },
                 .uint => switch (bits) {
-                    8 => NeedleType{ .u8 = undefined },
-                    16 => NeedleType{ .u16 = undefined },
-                    32 => NeedleType{ .u32 = undefined },
-                    64 => NeedleType{ .u64 = undefined },
-                    128 => NeedleType{ .u128 = undefined },
+                    8 => Needle{ .u8 = undefined },
+                    16 => Needle{ .u16 = undefined },
+                    32 => Needle{ .u32 = undefined },
+                    64 => Needle{ .u64 = undefined },
+                    128 => Needle{ .u128 = undefined },
                     else => error.InvalidBitCountForUInt,
                 },
                 .float => switch (bits) {
-                    16 => NeedleType{ .f16 = undefined },
-                    32 => NeedleType{ .f32 = undefined },
-                    64 => NeedleType{ .f64 = undefined },
-                    128 => NeedleType{ .f128 = undefined },
+                    16 => Needle{ .f16 = undefined },
+                    32 => Needle{ .f32 = undefined },
+                    64 => Needle{ .f64 = undefined },
+                    128 => Needle{ .f128 = undefined },
                     else => error.InvalidBitCountForFloat,
                 },
             };
@@ -78,7 +58,7 @@ pub fn parseStringForType(string: []const u8) !NeedleType {
     }
 }
 
-pub fn askUserForType() NeedleType {
+pub fn askUserForType() Needle {
     if (getStdin()) |string| {
         return parseStringForType(string) catch return askUserForType();
     } else {

@@ -7,6 +7,7 @@ const readv = @import("c.zig").readv;
 const memory = @import("memory.zig");
 const readMemMap = @import("read_map.zig").readMemMap;
 const input = @import("input.zig");
+const Needle = @import("needle.zig").Needle;
 
 fn help() void {
     warn("User must supply pid and (type hint + bit length)\n", .{});
@@ -83,7 +84,7 @@ pub fn main() anyerror!void {
 }
 
 /// Allows user to repeatedly view the value located at the needle address.
-fn handleFinalMatch(NT: input.NeedleType, pid: os.pid_t, needle_address: usize) !void {
+fn handleFinalMatch(NT: Needle, pid: os.pid_t, needle_address: usize) !void {
     var buffer = [_]u8{0} ** 400;
     while (true) {
         if (NT.T == .string) {
@@ -100,7 +101,7 @@ fn handleFinalMatch(NT: input.NeedleType, pid: os.pid_t, needle_address: usize) 
             };
             str_len = try memory.readRemote(buffer[0..peek_length], pid, needle_address);
         } else {
-            var needle_bytes = [_]u8{0} ** input.NeedleType.max_bytes;
+            var needle_bytes = [_]u8{0} ** Needle.max_bytes;
             _ = try memory.readRemote(needle_bytes[0..NT.bytes], pid, needle_address);
             str_len = try bytesToString(NT, needle_bytes[0..NT.bytes], buffer[0..]);
         }
@@ -128,7 +129,7 @@ fn findMatch(NT: input.NeedleType, pid: os.pid_t, potential_addresses: *memory.A
 /// Reads the given bytes as a type appropriate for the given NeedleType.
 /// Prints that value to the buffer as a string.
 /// Returns the number of characters written to buffer.
-fn bytesToString(NT: input.NeedleType, bytes: []u8, buffer: []u8) !usize {
+fn bytesToString(NT: Needle, bytes: []u8, buffer: []u8) !usize {
     switch (NT.T) {
         .string => unreachable,
         .int => |signed| {
