@@ -110,7 +110,7 @@ fn handleFinalMatch(NT: Needle, pid: os.pid_t, needle_address: usize) !void {
 }
 
 /// Using user input, filters potential addresses until we have a single one remaining.
-fn findMatch(NT: input.NeedleType, pid: os.pid_t, potential_addresses: *memory.Addresses) !?usize {
+fn findMatch(NT: Needle, pid: os.pid_t, potential_addresses: *memory.Addresses) !?usize {
     while (potential_addresses.items.len > 1) {
         print("Potential addresses: {}\n", .{potential_addresses.items.len});
         if (potential_addresses.items.len < 5) {
