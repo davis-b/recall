@@ -100,32 +100,22 @@ pub fn askUserForValue(needle: *Needle) ![]const u8 {
 /// Therefore, they will change as the needle does, and they do not need to be free'd.
 fn stringToType(comptime T: type, string: []const u8, needle: *Needle) ![]const u8 {
     const tn = @tagName(needle.*);
-    switch (@typeInfo(T)) {
-        .Int => |i| {
-            const result = try std.fmt.parseInt(T, string, 10);
-            inline for (@typeInfo(Needle).Union.fields) |field| {
-                if (field.field_type == T) {
-                    needle.* = @unionInit(Needle, field.name, result);
-                    return std.mem.asBytes(&@field(needle, field.name));
-                }
-            }
-            unreachable;
-        },
-        .Float => |f| {
-            const result = try std.fmt.parseFloat(T, string);
-            inline for (@typeInfo(Needle).Union.fields) |field| {
-                if (field.field_type == T) {
-                    needle.* = @unionInit(Needle, field.name, result);
-                    return std.mem.asBytes(&@field(needle, field.name));
-                }
-            }
-            unreachable;
-        },
+    const result = switch (@typeInfo(T)) {
+        .Int => |i| try std.fmt.parseInt(T, string, 10),
+        .Float => |f| try std.fmt.parseFloat(T, string),
         // Would prefer to have the 'Void' case handled by our 'else' clause.
         // However, it gives compile errors in zig 0.7.1.
         .Void => unreachable,
         else => @compileError("Function called with invalid type " ++ @typeName(T)),
+    };
+
+    inline for (@typeInfo(Needle).Union.fields) |field| {
+        if (field.field_type == T) {
+            needle.* = @unionInit(Needle, field.name, result);
+            return std.mem.asBytes(&@field(needle, field.name));
+        }
     }
+    @compileError(@typeName(T) ++ " is not a member of the given union " ++ @typeName(@TypeOf(needle.*)));
 }
 
 var stdin_buffer = [_]u8{0} ** 100;
