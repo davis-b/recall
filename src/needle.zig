@@ -20,3 +20,22 @@ pub const Needle = union(enum) {
 
     string: void,
 };
+
+// We would prefer to infer the return type from the function type. However, the only return type we are getting from @typeInfo is null while the function is generic.
+/// Calls a function with the given arguments prepended by the type of the given union value.
+/// Returns the value given by the function.
+pub fn call_fn_with_union_type(union_item: anytype, comptime return_type: type, comptime func: anytype, args: anytype) return_type {
+    const tn = std.meta.tagName(union_item);
+    const ti = @typeInfo(@TypeOf(union_item));
+    switch (ti) {
+        .Union => |u| {
+            inline for (u.fields) |f| {
+                if (std.mem.eql(u8, f.name, tn)) {
+                    return @call(.{ .modifier = .auto, .stack = null }, func, .{f.field_type} ++ args);
+                }
+            }
+            unreachable;
+        },
+        else => @compileError("Invalid type \"" ++ @typeName(@TypeOf(union_item)) ++ "\" called with this function."),
+    }
+}
