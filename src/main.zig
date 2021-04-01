@@ -84,7 +84,7 @@ pub fn main() anyerror!void {
     defer potential_addresses.deinit();
     print("Initial scan took {} ms\n", .{std.time.milliTimestamp() - initial_scan_start});
 
-    const maybe_final_address = try findMatch(needle_typeinfo, pid, &potential_addresses);
+    const maybe_final_address = try findMatch(&needle_typeinfo, pid, &potential_addresses);
     if (maybe_final_address) |addr| {
         print("Match found at: {}\n", .{addr});
         try handleFinalMatch(needle_typeinfo, pid, addr);
@@ -120,15 +120,14 @@ fn handleFinalMatch(needle: Needle, pid: os.pid_t, needle_address: usize) !void 
 }
 
 /// Using user input, filters potential addresses until we have a single one remaining.
-fn findMatch(NT: Needle, pid: os.pid_t, potential_addresses: *memory.Addresses) !?usize {
+fn findMatch(needle: *Needle, pid: os.pid_t, potential_addresses: *memory.Addresses) !?usize {
     while (potential_addresses.items.len > 1) {
         print("Potential addresses: {}\n", .{potential_addresses.items.len});
         if (potential_addresses.items.len < 5) {
             for (potential_addresses.items) |pa| warn("pa: {} \n", .{pa});
         }
-        var buffer = NT;
-        const new_needle: []const u8 = try input.askUserForValue(&buffer);
-        try memory.pruneAddresses(pid, new_needle, potential_addresses);
+        const needle_bytes: []const u8 = try input.askUserForValue(needle);
+        try memory.pruneAddresses(pid, needle_bytes, potential_addresses);
     }
     if (potential_addresses.items.len == 1) {
         return potential_addresses.items[0];
