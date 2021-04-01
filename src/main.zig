@@ -15,7 +15,7 @@ fn help() void {
     warn("i: signed integer   - Available with bit lengths [8, 16, 32, 64]\n", .{});
     warn("u: unsigned integer - Available with bit lengths [8, 16, 32, 64]\n", .{});
     warn("f: float            - Available with bit lengths [16, 32, 64] \n", .{});
-    warn("s: string           - Does not require a bit length\n", .{});
+    warn("s: string           - Does not use a bit length\n", .{});
     warn("\n", .{});
     warn("Example Usage: {} 5005 u32\n", .{os.argv[0]});
 }
