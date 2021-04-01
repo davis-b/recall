@@ -55,7 +55,8 @@ pub fn parseSegments(allocator: *std.mem.Allocator, pid: os.pid_t, segments: *Me
             return err;
         };
         if (read_amount != buffer.len) {
-            warn("expected to read {}, instead read {} bytes\n", .{ segment.len, read_amount });
+            warn("failed reading from segment: 0x{x}-0x{x} name \"{}\"\n", .{ segment.start, segment.start + segment.len, segment.name });
+            warn("expected to read {} bytes, instead read {} bytes\n", .{ segment.len, read_amount });
             return error.ReadError;
         }
         var pos: usize = 0;
