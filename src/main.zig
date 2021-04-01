@@ -12,10 +12,11 @@ const Needle = @import("needle.zig").Needle;
 fn help() void {
     warn("User must supply pid and (type hint + bit length)\n", .{});
     warn("Available type hints are: [i, u, f, s]\n", .{});
-    warn("i: signed integer\n", .{});
-    warn("u: unsigned integer\n", .{});
-    warn("f: float - Only available with bit lengths [16, 32, 64] \n", .{});
-    warn("s: string - Does not require a bit length\n", .{});
+    warn("i: signed integer   - Available with bit lengths [8, 16, 32, 64]\n", .{});
+    warn("u: unsigned integer - Available with bit lengths [8, 16, 32, 64]\n", .{});
+    warn("f: float            - Available with bit lengths [16, 32, 64] \n", .{});
+    warn("s: string           - Does not require a bit length\n", .{});
+    warn("\n", .{});
     warn("Example Usage: {} 5005 u32\n", .{os.argv[0]});
 }
 
