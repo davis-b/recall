@@ -51,7 +51,7 @@ pub fn parseSegments(allocator: *std.mem.Allocator, pid: os.pid_t, segments: *Me
     for (segments.items) |segment| {
         buffer = try allocator.realloc(buffer, segment.len);
         const read_amount = readv(pid, buffer, segment.start) catch |err| {
-            warn("failed reading from segment: {x}-{x} name \"{}\"\n", .{ segment.start, segment.start + segment.len, segment.name });
+            warn("failed reading from segment: 0x{x}-0x{x} name \"{}\"\n", .{ segment.start, segment.start + segment.len, segment.name });
             return err;
         };
         if (read_amount != buffer.len) {

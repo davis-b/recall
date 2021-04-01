@@ -68,7 +68,15 @@ pub fn main() anyerror!void {
     const needle: []const u8 = try input.askUserForValue(&needle_typeinfo);
 
     const initial_scan_start = std.time.milliTimestamp();
-    var potential_addresses = (try memory.parseSegments(allocator, pid, &memory_segments, needle)) orelse {
+    var potential_addresses = (memory.parseSegments(allocator, pid, &memory_segments, needle) catch |err| {
+        switch (err) {
+            error.InsufficientPermission => {
+                print("Insufficient permission to read memory from \"{}\" (pid {})\n", .{ process_name, pid });
+                return;
+            },
+            else => return err,
+        }
+    }) orelse {
         print("No match found. Exiting.\n", .{});
         return;
     };
