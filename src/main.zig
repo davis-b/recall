@@ -8,6 +8,7 @@ const memory = @import("memory.zig");
 const readMemMap = @import("read_map.zig").readMemMap;
 const input = @import("input.zig");
 const Needle = @import("needle.zig").Needle;
+const call_fn_with_union_type = @import("needle.zig").call_fn_with_union_type;
 
 fn help() void {
     warn("User must supply pid and (type hint + bit length)\n", .{});
@@ -86,17 +87,17 @@ pub fn main() anyerror!void {
     const maybe_final_address = try findMatch(needle_typeinfo, pid, &potential_addresses);
     if (maybe_final_address) |addr| {
         print("Match found at: {}\n", .{addr});
-        // try handleFinalMatch(needle_typeinfo, pid, addr);
+        try handleFinalMatch(needle_typeinfo, pid, addr);
     } else {
         print("No match found. Exiting.\n", .{});
     }
 }
 
 /// Allows user to repeatedly view the value located at the needle address.
-fn handleFinalMatch(NT: Needle, pid: os.pid_t, needle_address: usize) !void {
+fn handleFinalMatch(needle: Needle, pid: os.pid_t, needle_address: usize) !void {
     var buffer = [_]u8{0} ** 400;
     while (true) {
-        if (NT.T == .string) {
+        if (needle == .string) {
             print("Please enter the number of characters you would like to read\n", .{});
         } else {
             print("Enter any character to print value at needle address, or nothing to exit\n", .{});
@@ -104,15 +105,15 @@ fn handleFinalMatch(NT: Needle, pid: os.pid_t, needle_address: usize) !void {
         const user_input = input.getStdin() orelse break;
 
         var str_len: usize = 0;
-        if (NT.T == .string) {
-            const peek_length = std.fmt.parseInt(usize, user_input, 10) catch {
-                continue;
-            };
+        if (needle == .string) {
+            // TODO: Clamp peek_length max to prevent us from peeking past needle_address' memory segment.
+            var peek_length = std.fmt.parseInt(usize, user_input, 10) catch continue;
+            if (peek_length > buffer.len) peek_length = buffer.len;
             str_len = try memory.readRemote(buffer[0..peek_length], pid, needle_address);
         } else {
-            var needle_bytes = [_]u8{0} ** Needle.max_bytes;
-            _ = try memory.readRemote(needle_bytes[0..NT.bytes], pid, needle_address);
-            str_len = try bytesToString(NT, needle_bytes[0..NT.bytes], buffer[0..]);
+            _ = try memory.readRemote(buffer[0..needle.size()], pid, needle_address);
+            // We are intentionally re-using parts of buffer here for both parameters. The function is safe for this use case.
+            str_len = try call_fn_with_union_type(needle, anyerror!usize, printToBufferAs, .{ buffer[0..needle.size()], buffer[0..] });
         }
         print("value is: {}\n", .{buffer[0..str_len]});
     }
@@ -139,44 +140,6 @@ fn findMatch(NT: Needle, pid: os.pid_t, potential_addresses: *memory.Addresses) 
 /// Reads the given bytes as a type appropriate for the given NeedleType.
 /// Prints that value to the buffer as a string.
 /// Returns the number of characters written to buffer.
-fn bytesToString(NT: Needle, bytes: []u8, buffer: []u8) !usize {
-    switch (NT.T) {
-        .string => unreachable,
-        .int => |signed| {
-            if (signed) {
-                return try switch (NT.bytes) {
-                    1 => printToBufferAs(i8, bytes, buffer),
-                    2 => printToBufferAs(i16, bytes, buffer),
-                    4 => printToBufferAs(i32, bytes, buffer),
-                    8 => printToBufferAs(i64, bytes, buffer),
-                    16 => printToBufferAs(i128, bytes, buffer),
-                    else => unreachable,
-                };
-            } else {
-                return try switch (NT.bytes) {
-                    1 => printToBufferAs(u8, bytes, buffer),
-                    2 => printToBufferAs(u16, bytes, buffer),
-                    4 => printToBufferAs(u32, bytes, buffer),
-                    8 => printToBufferAs(u64, bytes, buffer),
-                    16 => printToBufferAs(u128, bytes, buffer),
-                    else => unreachable,
-                };
-            }
-        },
-        .float => {
-            return try switch (NT.bytes) {
-                2 => printToBufferAs(f16, bytes, buffer),
-                4 => printToBufferAs(f32, bytes, buffer),
-                8 => printToBufferAs(f64, bytes, buffer),
-                16 => printToBufferAs(f128, bytes, buffer),
-                else => unreachable,
-            };
-        },
-    }
-}
-
-/// Takes a type, bytes that will turn into that type, and a buffer to print to.
-/// Transforms those bytes into that type, and then prints that type to the out buffer.
 fn printToBufferAs(comptime T: type, bytes: []u8, out: []u8) !usize {
     const result = @ptrCast(*align(1) T, bytes[0..]).*;
     return (try std.fmt.bufPrint(out, "{}", .{result})).len;

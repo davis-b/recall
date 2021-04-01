@@ -19,6 +19,17 @@ pub const Needle = union(enum) {
     f128: f128,
 
     string: void,
+
+    /// Returns the size of the active field.
+    pub fn size(self: *const Needle) usize {
+        const tn = @tagName(self.*);
+        inline for (@typeInfo(Needle).Union.fields) |f| {
+            if (std.mem.eql(u8, f.name, tn)) {
+                return @sizeOf(f.field_type);
+            }
+        }
+        unreachable;
+    }
 };
 
 // We would prefer to infer the return type from the function type. However, the only return type we are getting from @typeInfo is null while the function is generic.
