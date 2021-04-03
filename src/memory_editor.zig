@@ -30,41 +30,7 @@ pub fn main() anyerror!void {
     if (amount) |amt| {
         result += amt;
         buffer = std.mem.asBytes(@alignCast(1, &result)).*;
-        const written = try writev(pid, buffer[0..], addr);
+        const written = try c.writev(pid, buffer[0..], addr);
         warn("wrote {} bytes\n", .{written});
     }
-}
-
-pub fn writev(pid: os.pid_t, buffer: []u8, remote_addr: usize) !usize {
-    var local_iov = c.iovec{ .iov_base = @ptrCast(*c_void, buffer), .iov_len = buffer.len };
-    var remote_iov = c.iovec{ .iov_base = @intToPtr(*c_void, remote_addr), .iov_len = buffer.len };
-
-    var read_array = [_]c.iovec{local_iov};
-    var write_array = [_]c.iovec{remote_iov};
-
-    const result = os.linux.syscall6(
-        os.SYS.process_vm_writev,
-        // Syscall expects pid_t, zig fn expects usize.
-        @intCast(usize, pid),
-        @ptrToInt(&read_array),
-        write_array.len,
-        @ptrToInt(&write_array),
-        read_array.len,
-        0,
-    );
-    try handleError(result);
-    return result;
-}
-
-fn handleError(result: usize) !void {
-    const err = os.errno(result);
-    return switch (err) {
-        0 => {},
-        os.EFAULT => error.InvalidMemorySpace,
-        os.EINVAL => error.EINVAL,
-        os.ENOMEM => error.MemoryError,
-        os.EPERM => error.InsufficientPermission,
-        os.ESRCH => error.NoPIDExists,
-        else => error.UnknownPVReadvError,
-    };
 }

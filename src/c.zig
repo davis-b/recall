@@ -58,9 +58,23 @@ fn handleError(result: usize) !void {
     };
 }
 
-// /// Get the errno from a syscall return value, or 0 for no error.
-// /// Copied from std/os/linux.zig because os.errno was not functioning as expected when linking with libc.
-// pub fn getErrno(r: usize) u12 {
-//     const signed_r = @bitCast(isize, r);
-//     return if (signed_r > -4096 and signed_r < 0) @intCast(u12, -signed_r) else 0;
-// }
+pub fn writev(pid: os.pid_t, buffer: []u8, remote_addr: usize) !usize {
+    var local_iov = c.iovec{ .iov_base = @ptrCast(*c_void, buffer), .iov_len = buffer.len };
+    var remote_iov = c.iovec{ .iov_base = @intToPtr(*c_void, remote_addr), .iov_len = buffer.len };
+
+    var read_array = [_]c.iovec{local_iov};
+    var write_array = [_]c.iovec{remote_iov};
+
+    const result = os.linux.syscall6(
+        os.SYS.process_vm_writev,
+        // Syscall expects pid_t, zig fn expects usize.
+        @intCast(usize, pid),
+        @ptrToInt(&read_array),
+        write_array.len,
+        @ptrToInt(&write_array),
+        read_array.len,
+        0,
+    );
+    try handleError(result);
+    return result;
+}
