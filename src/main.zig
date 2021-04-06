@@ -93,6 +93,23 @@ pub fn main() anyerror!void {
     }
 }
 
+/// Using user input, filters potential addresses until we have a single one remaining.
+fn findMatch(needle: *Needle, pid: os.pid_t, potential_addresses: *memory.Addresses) !?usize {
+    while (potential_addresses.items.len > 1) {
+        print("Potential addresses: {}\n", .{potential_addresses.items.len});
+        if (potential_addresses.items.len < 5) {
+            for (potential_addresses.items) |pa| warn("pa: {} \n", .{pa});
+        }
+        const needle_bytes: []const u8 = try input.askUserForValue(needle);
+        try memory.pruneAddresses(pid, needle_bytes, potential_addresses);
+    }
+    if (potential_addresses.items.len == 1) {
+        return potential_addresses.items[0];
+    } else {
+        return null;
+    }
+}
+
 /// Allows user to repeatedly view the value located at the needle address.
 fn handleFinalMatch(needle: Needle, pid: os.pid_t, needle_address: usize) !void {
     var buffer = [_]u8{0} ** 400;
@@ -116,23 +133,6 @@ fn handleFinalMatch(needle: Needle, pid: os.pid_t, needle_address: usize) !void 
             str_len = try call_fn_with_union_type(needle, anyerror!usize, printToBufferAs, .{ buffer[0..needle.size()], buffer[0..] });
         }
         print("value is: {}\n", .{buffer[0..str_len]});
-    }
-}
-
-/// Using user input, filters potential addresses until we have a single one remaining.
-fn findMatch(needle: *Needle, pid: os.pid_t, potential_addresses: *memory.Addresses) !?usize {
-    while (potential_addresses.items.len > 1) {
-        print("Potential addresses: {}\n", .{potential_addresses.items.len});
-        if (potential_addresses.items.len < 5) {
-            for (potential_addresses.items) |pa| warn("pa: {} \n", .{pa});
-        }
-        const needle_bytes: []const u8 = try input.askUserForValue(needle);
-        try memory.pruneAddresses(pid, needle_bytes, potential_addresses);
-    }
-    if (potential_addresses.items.len == 1) {
-        return potential_addresses.items[0];
-    } else {
-        return null;
     }
 }
 
