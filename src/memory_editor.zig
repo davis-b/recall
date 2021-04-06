@@ -1,36 +1,43 @@
 const std = @import("std");
 const os = std.os;
 const warn = std.debug.warn;
+const print = std.debug.print;
 
 const c = @import("c.zig");
+const input = @import("input.zig");
+const Needle = @import("needle.zig").Needle;
+const call_fn_with_union_type = @import("needle.zig").call_fn_with_union_type;
 
-pub fn main() anyerror!void {
-    if (os.argv.len < 3) {
-        warn("user must supply pid and address\n", .{});
-        warn("Optionally, a value may be supplied to increment the deferenced address by\n", .{});
-        os.exit(2);
+pub fn main() anyerror!u8 {
+    if (os.argv.len < 5) {
+        warn("User must supply [pid, (type hint + bit length), address, and a value to set the address to]\n", .{});
+        return 2;
     }
-    const pid = std.fmt.parseInt(os.pid_t, std.mem.span(os.argv[1]), 10) catch os.exit(2);
-    const addr = std.fmt.parseInt(usize, std.mem.span(os.argv[2]), 10) catch os.exit(2);
+    const pid = std.fmt.parseInt(os.pid_t, std.mem.span(os.argv[1]), 10) catch |err| {
+        warn("Failed parsing PID \"{}\". {}\n", .{ os.argv[1], err });
+        return 2;
+    };
 
-    const T = i32;
-    var amount: ?T = null;
-    if (os.argv.len == 4) {
-        amount = std.fmt.parseInt(T, std.mem.span(os.argv[3]), 10) catch os.exit(2);
-    }
+    var needle = input.parseStringForType(std.mem.span(os.argv[2])) catch |err| {
+        warn("Failed parsing type \"{}\". {}\n", .{ os.argv[2], err });
+        return 2;
+    };
 
-    warn("T {}\n", .{@typeName(T)});
-    var buffer: [@bitSizeOf(T) / 8]u8 = undefined;
-    const read_amount = try c.readv(pid, buffer[0..], addr);
-    warn("buffer: {x}\n", .{buffer});
-    var result = @bitCast(T, buffer);
-    // const result = @ptrCast(*T, &buffer[0..read_amount]).*;
-    warn("result: {}\n", .{result});
+    const addr = std.fmt.parseInt(usize, std.mem.span(os.argv[3]), 10) catch |err| {
+        warn("Failed parsing address \"{}\". {}\n", .{ os.argv[3], err });
+        return 2;
+    };
 
-    if (amount) |amt| {
-        result += amt;
-        buffer = std.mem.asBytes(@alignCast(1, &result)).*;
-        const written = try c.writev(pid, buffer[0..], addr);
-        warn("wrote {} bytes\n", .{written});
-    }
+    const needle_value_str = std.mem.span(os.argv[4]);
+    const needle_bytes = try call_fn_with_union_type(needle, anyerror![]u8, input.stringToType, .{ needle_value_str, &needle });
+
+    // const read_amount = try c.readv(pid, buffer[0..], addr);
+    // warn("buffer: {x}\n", .{buffer});
+    // var result = @bitCast(T, buffer);
+    // warn("result: {}\n", .{result});
+
+    const written = try c.writev(pid, needle_bytes, addr);
+    warn("wrote {} bytes\n", .{written});
+
+    return 0;
 }

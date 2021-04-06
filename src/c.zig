@@ -59,11 +59,11 @@ fn handleError(result: usize) !void {
 }
 
 pub fn writev(pid: os.pid_t, buffer: []u8, remote_addr: usize) !usize {
-    var local_iov = c.iovec{ .iov_base = @ptrCast(*c_void, buffer), .iov_len = buffer.len };
-    var remote_iov = c.iovec{ .iov_base = @intToPtr(*c_void, remote_addr), .iov_len = buffer.len };
+    var local_iov = iovec{ .iov_base = @ptrCast(*c_void, buffer), .iov_len = buffer.len };
+    var remote_iov = iovec{ .iov_base = @intToPtr(*c_void, remote_addr), .iov_len = buffer.len };
 
-    var read_array = [_]c.iovec{local_iov};
-    var write_array = [_]c.iovec{remote_iov};
+    var read_array = [_]iovec{local_iov};
+    var write_array = [_]iovec{remote_iov};
 
     const result = os.linux.syscall6(
         os.SYS.process_vm_writev,

@@ -75,7 +75,7 @@ var user_value_buffer = [_]u8{0} ** 128;
 /// Thus, we have to go about this in a roundabout fashion.
 /// Eventually, we return the bytes representing the input value for the requested type.
 /// The bytes returned are global to this module and are not owned by the caller.
-pub fn askUserForValue(needle: *Needle) ![]const u8 {
+pub fn askUserForValue(needle: *Needle) ![]u8 {
     print("Please enter value for {} > ", .{std.meta.tagName(needle.*)});
     const maybe_input = getStdin();
     var buffer = user_value_buffer[0..];
@@ -85,7 +85,7 @@ pub fn askUserForValue(needle: *Needle) ![]const u8 {
                 return input;
             },
             else => {
-                return try call_fn_with_union_type(needle.*, anyerror![]const u8, stringToType, .{ input, needle });
+                return try call_fn_with_union_type(needle.*, anyerror![]u8, stringToType, .{ input, needle });
             },
         }
     } else {
@@ -98,7 +98,7 @@ pub fn askUserForValue(needle: *Needle) ![]const u8 {
 /// Reinterprets result as bytes, which then get returned.
 /// Returned bytes are simply another representation of the needle data.
 /// Therefore, they will change as the needle does, and they do not need to be free'd.
-fn stringToType(comptime T: type, string: []const u8, needle: *Needle) ![]const u8 {
+pub fn stringToType(comptime T: type, string: []const u8, needle: *Needle) ![]u8 {
     const tn = @tagName(needle.*);
     const result = switch (@typeInfo(T)) {
         .Int => |i| try std.fmt.parseInt(T, string, 10),
