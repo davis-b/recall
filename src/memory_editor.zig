@@ -29,12 +29,10 @@ pub fn main() anyerror!u8 {
     };
 
     const needle_value_str = std.mem.span(os.argv[4]);
-    const needle_bytes = try call_fn_with_union_type(needle, std.fmt.ParseIntError![]u8, input.stringToType, .{ needle_value_str, &needle });
-
-    // const read_amount = try c.readv(pid, buffer[0..], addr);
-    // warn("buffer: {x}\n", .{buffer});
-    // var result = @bitCast(T, buffer);
-    // warn("result: {}\n", .{result});
+    const needle_bytes = call_fn_with_union_type(needle, std.fmt.ParseIntError![]u8, input.stringToType, .{ needle_value_str, &needle }) catch |err| {
+        warn("Failed obtaining a value to set address {x} to. {}\n", .{ addr, err });
+        return 2;
+    };
 
     const written = try c.writev(pid, needle_bytes, addr);
     warn("wrote {} bytes\n", .{written});
