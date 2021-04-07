@@ -85,7 +85,7 @@ pub fn askUserForValue(needle: *Needle) ![]u8 {
                 return input;
             },
             else => {
-                return try call_fn_with_union_type(needle.*, anyerror![]u8, stringToType, .{ input, needle });
+                return try call_fn_with_union_type(needle.*, std.fmt.ParseIntError![]u8, stringToType, .{ input, needle });
             },
         }
     } else {
@@ -98,7 +98,7 @@ pub fn askUserForValue(needle: *Needle) ![]u8 {
 /// Reinterprets result as bytes, which then get returned.
 /// Returned bytes are simply another representation of the needle data.
 /// Therefore, they will change as the needle does, and they do not need to be free'd.
-pub fn stringToType(comptime T: type, string: []const u8, needle: *Needle) ![]u8 {
+pub fn stringToType(comptime T: type, string: []const u8, needle: *Needle) std.fmt.ParseIntError![]u8 {
     const tn = @tagName(needle.*);
     const result = switch (@typeInfo(T)) {
         .Int => |i| try std.fmt.parseInt(T, string, 10),

@@ -29,7 +29,7 @@ pub fn main() anyerror!u8 {
     };
 
     const needle_value_str = std.mem.span(os.argv[4]);
-    const needle_bytes = try call_fn_with_union_type(needle, anyerror![]u8, input.stringToType, .{ needle_value_str, &needle });
+    const needle_bytes = try call_fn_with_union_type(needle, std.fmt.ParseIntError![]u8, input.stringToType, .{ needle_value_str, &needle });
 
     // const read_amount = try c.readv(pid, buffer[0..], addr);
     // warn("buffer: {x}\n", .{buffer});
