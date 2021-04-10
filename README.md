@@ -3,7 +3,7 @@
 ## What is _memview?_ ##
 
 
-_memview_ is a Linux program allows you to search through another process's memory for a specific value, eventually returning the memory address your specified value is located at.
+_memview_ is a Linux program allows you to repeatedly search through another process's memory for a potentially changing value, eventually returning the memory address your specified value is located at.
 
 _memview_ is written in Zig, and has been tested against zig version 0.7.1.
 
