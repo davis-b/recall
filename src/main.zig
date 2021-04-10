@@ -11,8 +11,8 @@ const Needle = @import("needle.zig").Needle;
 const call_fn_with_union_type = @import("needle.zig").call_fn_with_union_type;
 
 fn help() void {
-    warn("User must supply pid and (type hint + bit length)\n", .{});
-    warn("Available type hints are: [i, u, f, s]\n", .{});
+    warn("User must supply pid and (type + bit length)\n", .{});
+    warn("Available types are: [i, u, f, s]\n", .{});
     warn("i: signed integer   - Available with bit lengths [8, 16, 32, 64]\n", .{});
     warn("u: unsigned integer - Available with bit lengths [8, 16, 32, 64]\n", .{});
     warn("f: float            - Available with bit lengths [16, 32, 64] \n", .{});

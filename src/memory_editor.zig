@@ -10,7 +10,7 @@ const call_fn_with_union_type = @import("needle.zig").call_fn_with_union_type;
 
 pub fn main() anyerror!u8 {
     if (os.argv.len < 5) {
-        warn("User must supply [pid, (type hint + bit length), address, and a value to set the address to]\n", .{});
+        warn("User must supply [pid, (type + bit length), address, and a value to set the address to]\n", .{});
         return 2;
     }
     const pid = std.fmt.parseInt(os.pid_t, std.mem.span(os.argv[1]), 10) catch |err| {
