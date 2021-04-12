@@ -27,14 +27,23 @@ pub fn main() anyerror!u8 {
         return 2;
     };
 
-    const needle_value_str = std.mem.span(os.argv[4]);
-    const needle_bytes = input.stringToType(needle_value_str, &needle) catch |err| {
-        warn("Failed obtaining a value to set address {x} to. {}\n", .{ addr, err });
-        return 2;
-    };
+    const new_value = std.mem.span(os.argv[4]);
 
-    const written = try c.writev(pid, needle_bytes, addr);
-    warn("wrote {} bytes\n", .{written});
+    switch (needle) {
+        .string => {
+            const written = try c.writev(pid, new_value, addr);
+            warn("wrote {} bytes\n", .{written});
+        },
+        else => {
+            const needle_bytes = input.stringToType(new_value, &needle) catch |err| {
+                warn("Failed obtaining a value to set address {x} to. {}\n", .{ addr, err });
+                return 2;
+            };
+
+            const written = try c.writev(pid, needle_bytes, addr);
+            warn("wrote {} bytes\n", .{written});
+        },
+    }
 
     return 0;
 }
