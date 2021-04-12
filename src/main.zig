@@ -100,7 +100,10 @@ fn findMatch(needle: *Needle, pid: os.pid_t, potential_addresses: *memory.Addres
         if (potential_addresses.items.len < 5) {
             for (potential_addresses.items) |pa| warn("pa: {} \n", .{pa});
         }
-        const needle_bytes: []const u8 = try input.askUserForValue(needle);
+        const needle_bytes: []const u8 = input.askUserForValue(needle) catch |err| {
+            warn("{}\n\n", .{err});
+            continue;
+        };
         try memory.pruneAddresses(pid, needle_bytes, potential_addresses);
     }
     if (potential_addresses.items.len == 1) {
