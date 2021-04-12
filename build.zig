@@ -32,6 +32,7 @@ pub fn build(b: *Builder) void {
 
     const tests = .{
         "src/memory.zig",
+        "src/input.zig",
     };
 
     inline for (tests) |path| {

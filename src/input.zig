@@ -3,6 +3,7 @@ const meta = std.meta;
 const print = std.debug.print;
 const Needle = @import("needle.zig").Needle;
 const call_fn_with_union_type = @import("needle.zig").call_fn_with_union_type;
+const testing = std.testing;
 
 pub fn parseStringForType(string: []const u8) !Needle {
     if (string.len == 0) return error.EmptyStringProvided;
@@ -122,6 +123,34 @@ fn stringToType_internal(comptime T: type, string: []const u8, needle: *Needle) 
         }
     }
     @compileError(@typeName(T) ++ " is not a member of the given union " ++ @typeName(@TypeOf(needle.*)));
+}
+
+test "string to type" {
+    var needle = Needle{ .u8 = 0 };
+    // Invalid strings.
+    testing.expectError(error.Overflow, stringToType("-100", &needle));
+    testing.expectError(error.Overflow, stringToType("256", &needle));
+    testing.expectError(error.InvalidCharacter, stringToType("100 ", &needle));
+    // Valid string.
+    var byte_repr = try stringToType("255", &needle);
+    testing.expect(std.mem.eql(u8, byte_repr, &[_]u8{0xff}));
+    // Prove function changes needle value.
+    testing.expectEqual(needle.u8, 255);
+
+    // stringToType returns an array backed by the needle itself.
+    needle = Needle{ .i16 = 0 };
+    byte_repr = try stringToType("-1000", &needle);
+    // Sanity check.
+    var input_needle_value: i16 = -1000;
+    testing.expectEqual(needle.i16, input_needle_value);
+    var expected_bytes = std.mem.asBytes(&input_needle_value);
+    // Establish expected byte representation.
+    testing.expect(std.mem.eql(u8, byte_repr, expected_bytes));
+    // Prove byte_repr is backed by needle, even as needle changes.
+    needle.i16 += 1;
+    testing.expectEqual(needle.i16, -999);
+    // We have modified needle only, yet byte_repr will change as well.
+    testing.expect(!std.mem.eql(u8, byte_repr, expected_bytes));
 }
 
 var stdin_buffer = [_]u8{0} ** 100;
