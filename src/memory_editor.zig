@@ -6,7 +6,6 @@ const print = std.debug.print;
 const c = @import("c.zig");
 const input = @import("input.zig");
 const Needle = @import("needle.zig").Needle;
-const call_fn_with_union_type = @import("needle.zig").call_fn_with_union_type;
 
 pub fn main() anyerror!u8 {
     if (os.argv.len < 5) {
@@ -29,7 +28,7 @@ pub fn main() anyerror!u8 {
     };
 
     const needle_value_str = std.mem.span(os.argv[4]);
-    const needle_bytes = call_fn_with_union_type(needle, std.fmt.ParseIntError![]u8, input.stringToType, .{ needle_value_str, &needle }) catch |err| {
+    const needle_bytes = input.stringToType(needle_value_str, &needle) catch |err| {
         warn("Failed obtaining a value to set address {x} to. {}\n", .{ addr, err });
         return 2;
     };
