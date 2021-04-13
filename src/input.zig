@@ -77,9 +77,9 @@ var user_value_buffer = [_]u8{0} ** 128;
 /// Eventually, we return the bytes representing the input value for the requested type.
 /// The bytes returned are global to this module and are not owned by the caller.
 pub fn askUserForValue(needle: *Needle) ![]u8 {
-    print("Please enter value for {} between ", .{std.meta.tagName(needle.*)});
+    print("Please enter value for {} ", .{std.meta.tagName(needle.*)});
     call_fn_with_union_type(needle.*, void, printMinMax, .{});
-    print(" > ", .{});
+    print("> ", .{});
     const maybe_input = getStdin();
     var buffer = user_value_buffer[0..];
     if (maybe_input) |input| {
@@ -102,7 +102,7 @@ fn printMinMax(comptime T: type) void {
         .Int => {
             const min = std.math.minInt(T);
             const max = std.math.maxInt(T);
-            print("{} and {}", .{ min, max });
+            print("between {} and {} ", .{ min, max });
         },
         .Float => {
             const min_max = switch (T) {

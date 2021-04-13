@@ -118,9 +118,9 @@ fn handleFinalMatch(needle: Needle, pid: os.pid_t, needle_address: usize) !void 
     var buffer = [_]u8{0} ** 400;
     while (true) {
         if (needle == .string) {
-            print("Please enter the number of characters you would like to read\n", .{});
+            print("\nPlease enter the number of characters you would like to read, up to {} >  ", .{buffer.len});
         } else {
-            print("Enter any character to print value at needle address, or nothing to exit\n", .{});
+            print("\nEnter any character to print value at needle address, or nothing to exit >  ", .{});
         }
         const user_input = input.getStdin() orelse break;
 
