@@ -126,10 +126,17 @@ fn handleFinalMatch(needle: Needle, pid: os.pid_t, needle_address: usize) !void 
 
         var str_len: usize = 0;
         if (needle == .string) {
-            // TODO: Clamp peek_length max to prevent us from peeking past needle_address' memory segment.
             var peek_length = std.fmt.parseInt(usize, user_input, 10) catch continue;
             if (peek_length > buffer.len) peek_length = buffer.len;
-            str_len = try memory.readRemote(buffer[0..peek_length], pid, needle_address);
+            str_len = memory.readRemote(buffer[0..peek_length], pid, needle_address) catch |err| {
+                switch (err) {
+                    error.RemoteReadAmountMismatch => {
+                        print("{} exceeded the length of the valid address space. Try a smaller number\n", .{peek_length});
+                        continue;
+                    },
+                    else => return err,
+                }
+            };
         } else {
             _ = try memory.readRemote(buffer[0..needle.size()], pid, needle_address);
             // We are intentionally re-using parts of buffer here for both parameters. The function is safe for this use case.
