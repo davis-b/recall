@@ -12,12 +12,12 @@ pub fn build(b: *Builder) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     const mode = b.standardReleaseOptions();
 
-    const exe = b.addExecutable("memview", "src/main.zig");
+    const exe = b.addExecutable("recall", "src/main.zig");
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();
 
-    const memedit = b.addExecutable("memedit", "src/memory_editor.zig");
+    const memedit = b.addExecutable("memset", "src/memory_editor.zig");
     memedit.setTarget(target);
     memedit.setBuildMode(mode);
     memedit.install();
