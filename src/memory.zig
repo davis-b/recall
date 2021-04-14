@@ -80,7 +80,7 @@ pub fn pruneAddresses(pid: os.pid_t, needle: []const u8, haystack: *Addresses) !
     var pos: usize = haystack.items.len - 1;
     while (true) {
         const ptr = haystack.items[pos];
-        if (!try isMatch(pid, buffer[0..], needle, ptr)) {
+        if (!isMatch(pid, buffer[0..], needle, ptr)) {
             _ = haystack.orderedRemove(pos);
         }
         if (pos == 0) break;
@@ -88,11 +88,11 @@ pub fn pruneAddresses(pid: os.pid_t, needle: []const u8, haystack: *Addresses) !
     }
 }
 
-fn isMatch(pid: os.pid_t, buffer: []u8, expected: []const u8, ptr: usize) !bool {
+fn isMatch(pid: os.pid_t, buffer: []u8, expected: []const u8, ptr: usize) bool {
     std.debug.assert(buffer.len >= expected.len);
     const read_amount = readv(pid, buffer[0..expected.len], ptr) catch |err| {
         warn("{} reading ptr: {x}\n", .{ err, ptr });
-        return err;
+        return false;
     };
     std.debug.assert(read_amount == expected.len);
     return std.mem.eql(u8, expected, buffer[0..read_amount]);
