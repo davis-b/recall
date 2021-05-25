@@ -3,7 +3,7 @@
 ## What is _recall?_ ##
 
 
-_recall_ is a Linux program allows you to repeatedly search through another process's memory for a potentially changing value, eventually returning the memory address your specified value is located at.
+_recall_ is a Linux program allows you to repeatedly search through another process's memory for a potentially changing value, eventually returning the memory address your specified value is located at. This type of program is known as a _memory scanner_.
 
 _recall_ is written in Zig, and has been designed for zig version 0.7.1.
 
