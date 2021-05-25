@@ -35,11 +35,12 @@ fn real_readv(pid: os.pid_t, buffer: []u8, remote_addr: usize) !usize {
     return result;
 }
 
+/// Instead of reading memory from an active process,
+///  this function reads from the 'value_for_buffer' variable.
+/// This is automatically used when zig is running tests.
 fn testable_readv(unused: os.pid_t, buffer: []u8, value_for_buffer: anytype) !usize {
     const value_as_bytes = std.mem.asBytes(&value_for_buffer);
     if (value_as_bytes.len > buffer.len and value_as_bytes[buffer.len] != 0) return error.ReadvTestError;
-
-    // std.debug.warn("\nbuffer len: {} \nvalue: {} \nbytes len: {} \nbytes: {x}\n", .{ buffer.len, value_for_buffer, value_as_bytes.len, value_as_bytes });
 
     for (buffer) |*i, n| i.* = value_as_bytes[n];
     return buffer.len;
