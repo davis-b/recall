@@ -178,6 +178,8 @@ fn printHumanReadableByteCount(bytes: usize) void {
     }
 }
 
+/// Returns the process name for a given pid.
+/// Caller owns the memory.
 fn find_process_name(allocator: *std.mem.Allocator, pid: os.pid_t) ![]u8 {
     var path_buffer = [_]u8{0} ** 30;
     var fbs = std.io.fixedBufferStream(path_buffer[0..]);
