@@ -101,7 +101,12 @@ fn findMatch(needle: *Needle, pid: os.pid_t, potential_addresses: *memory.Addres
             for (potential_addresses.items) |pa| warn("pa: {} \n", .{pa});
         }
         const needle_bytes: []const u8 = input.askUserForValue(needle) catch |err| {
-            warn("{}\n\n", .{err});
+            switch (err) {
+                error.NoInputGiven => {
+                    for (potential_addresses.items) |i, index| print("#{}: {}\n", .{ index, i });
+                },
+                error.Overflow, error.InvalidCharacter => warn("{}\n\n", .{err}),
+            }
             continue;
         };
         try memory.pruneAddresses(pid, needle_bytes, potential_addresses);
