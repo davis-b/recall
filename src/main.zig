@@ -3,7 +3,6 @@ const os = std.os;
 const warn = std.debug.warn;
 const print = std.debug.print;
 
-const readv = @import("c.zig").readv;
 const memory = @import("memory.zig");
 const readMemMap = @import("read_map.zig").readMemMap;
 const input = @import("input.zig");
