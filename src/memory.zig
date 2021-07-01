@@ -62,17 +62,16 @@ pub fn parseSegments(allocator: *std.mem.Allocator, pid: os.pid_t, segments: *Me
     for (segments.items) |segment| {
         buffer = try allocator.realloc(buffer, segment.len);
         const read_amount = readv(pid, buffer, segment.start) catch |err| {
-            warn("failed reading from segment: 0x{x}-0x{x} name \"{s}\"\n", .{ segment.start, segment.start + segment.len, segment.name });
+            warn("Failed reading from segment: 0x{x}-0x{x} name \"{s}\"\n", .{ segment.start, segment.start + segment.len, segment.name });
             return err;
         };
         if (read_amount != buffer.len) {
-            warn("failed reading from segment: 0x{x}-0x{x} name \"{s}\"\n", .{ segment.start, segment.start + segment.len, segment.name });
-            warn("expected to read {} bytes, instead read {} bytes\n", .{ segment.len, read_amount });
-            return error.ReadError;
-            //continue;
+            warn("Partially read from segment: 0x{x}-0x{x} name \"{s}\"\n", .{ segment.start, segment.start + segment.len, segment.name });
+            warn("Expected to read {} bytes, instead read {} bytes\n", .{ segment.len, read_amount });
+            continue;
         }
         var pos: usize = 0;
-        while (findMatches(&pos, buffer, expected_value, byte_alignment)) |match_pos| {
+        while (findMatches(&pos, buffer[0..read_amount], expected_value, byte_alignment)) |match_pos| {
             try potential_addresses.append(segment.start + match_pos);
         }
     }
