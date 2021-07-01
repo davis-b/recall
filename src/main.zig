@@ -95,7 +95,7 @@ pub fn main() anyerror!void {
 
     const maybe_final_address = try findMatch(&needle_typeinfo, pid, &potential_addresses);
     if (maybe_final_address) |addr| {
-        print("Match found at: {}\n", .{addr});
+        print("Match found at: {} ({X})\n", .{ addr, addr });
         try handleFinalMatch(needle_typeinfo, pid, addr);
     } else {
         print("No match found. Exiting.\n", .{});
@@ -107,12 +107,12 @@ fn findMatch(needle: *Needle, pid: os.pid_t, potential_addresses: *memory.Addres
     while (potential_addresses.items.len > 1) {
         print("Potential addresses: {}\n", .{potential_addresses.items.len});
         if (potential_addresses.items.len < 5) {
-            for (potential_addresses.items) |pa| warn("pa: {} \n", .{pa});
+            for (potential_addresses.items) |pa| print("potential addr: {} ({X}) \n", .{ pa, pa });
         }
         const needle_bytes: []const u8 = input.askUserForValue(needle) catch |err| {
             switch (err) {
                 error.NoInputGiven => {
-                    for (potential_addresses.items) |i, index| print("#{}: {}\n", .{ index, i });
+                    for (potential_addresses.items) |i, index| print("#{}: {} ({X})\n", .{ index, i, i });
                 },
                 error.Overflow, error.InvalidCharacter => warn("{}\n\n", .{err}),
             }
