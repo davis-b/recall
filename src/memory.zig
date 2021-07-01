@@ -11,7 +11,16 @@ pub const Addresses = std.ArrayList(usize);
 
 /// Looks through a dereferenced segment of memory for values that match our needle.
 /// Returns the index of the next match, or null if there are no remaining matches.
-fn findMatches(pos: *usize, haystack: []const u8, needle: []const u8) ?usize {
+/// 
+/// "byte_alignment" helps determine how much padding is placed between each item in memory.
+/// Or for our purposes, how many bytes we can skip after each checked item.
+/// If the alignment is its minimum value of 1, items are placed contiguously 
+///  in memory with no padding between them.
+/// If the alignment, N, is greater than 1, there will exist padding between 
+///  items such that the starting byte of each item will be at
+///  an index evenly divisible by N.
+/// Example: [ u16, pad_byte, pad_byte, u24, pad_byte, u32 ]
+fn findMatches(pos: *usize, haystack: []const u8, needle: []const u8, byte_alignment: u8) ?usize {
     // Example situation: We're looking for a needle of 2 bytes in a haystack of 5 bytes.
     // The outer index will start at 0 and iterate through until it has finished an inner loop with the (5-2)nd byte.
     // The inner index will be iterated through upon each iteration of the outer index.
@@ -22,7 +31,8 @@ fn findMatches(pos: *usize, haystack: []const u8, needle: []const u8) ?usize {
     // ...
     // [1, 2, 3, [4, 5]] outer = 3, inner = 1
     const new_haystack = haystack[pos.*..];
-    for (new_haystack) |head, outer_index| {
+    var outer_index: usize = 0;
+    while (outer_index < new_haystack.len) : (outer_index += byte_alignment) {
         // No more room left in haystack for needle matches.
         if (new_haystack.len < outer_index + needle.len) break;
         var is_match: bool = false;
@@ -44,7 +54,7 @@ fn findMatches(pos: *usize, haystack: []const u8, needle: []const u8) ?usize {
 /// Takes a list of segments. Looks through each address for a match of our expected value.
 /// The expected value is represented as a series of bytes.
 /// Finally, returns a list of all memory addresses that contain the value we are looking for.
-pub fn parseSegments(allocator: *std.mem.Allocator, pid: os.pid_t, segments: *MemSegments, expected_value: []const u8) !?Addresses {
+pub fn parseSegments(allocator: *std.mem.Allocator, pid: os.pid_t, segments: *MemSegments, expected_value: []const u8, byte_alignment: u8) !?Addresses {
     var potential_addresses = Addresses.init(allocator);
     errdefer potential_addresses.deinit();
     var buffer = try allocator.alloc(u8, 0);
@@ -62,7 +72,7 @@ pub fn parseSegments(allocator: *std.mem.Allocator, pid: os.pid_t, segments: *Me
             //continue;
         }
         var pos: usize = 0;
-        while (findMatches(&pos, buffer, expected_value)) |match_pos| {
+        while (findMatches(&pos, buffer, expected_value, byte_alignment)) |match_pos| {
             try potential_addresses.append(segment.start + match_pos);
         }
     }
@@ -118,42 +128,67 @@ pub fn readToBufferAs(comptime T: type, buffer: []u8, pid: os.pid_t, address: us
     return (try std.fmt.bufPrint(buffer, "{}", .{result})).len;
 }
 
-test "find matches" {
+test "find matches with 1 byte alignment" {
     const haystack = &[_]u8{ 11, 12, 13, 14, 15 };
     var pos: usize = 0;
     // Normal use.
-    std.testing.expectEqual(@as(?usize, 0), findMatches(&pos, haystack, &[_]u8{11}));
-    std.testing.expectEqual(@as(?usize, 1), pos);
+    try expectEqual(@as(?usize, 0), findMatches(&pos, haystack, &[_]u8{11}, 1));
+    try expectEqual(@as(?usize, 1), pos);
     pos = 0;
-    std.testing.expectEqual(@as(?usize, 0), findMatches(&pos, haystack, &[_]u8{ 11, 12, 13, 14, 15 }));
+    try expectEqual(@as(?usize, 0), findMatches(&pos, haystack, &[_]u8{ 11, 12, 13, 14, 15 }, 1));
     pos = 0;
-    std.testing.expectEqual(@as(?usize, 2), findMatches(&pos, haystack, &[_]u8{ 13, 14 }));
-    std.testing.expectEqual(@as(?usize, 3), pos);
+    try expectEqual(@as(?usize, 2), findMatches(&pos, haystack, &[_]u8{ 13, 14 }, 1));
+    try expectEqual(@as(?usize, 3), pos);
     pos = 0;
-    std.testing.expectEqual(@as(?usize, 4), findMatches(&pos, haystack, &[_]u8{15}));
-    std.testing.expectEqual(@as(?usize, 5), pos);
+    try expectEqual(@as(?usize, 4), findMatches(&pos, haystack, &[_]u8{15}, 1));
+    try expectEqual(@as(?usize, 5), pos);
 
     // Calling function after a simluated match, where our needle is not in the adjusted buffer.
     pos = 1;
-    std.testing.expectEqual(@as(?usize, null), findMatches(&pos, haystack, &[_]u8{ 11, 12, 13, 14, 15 }));
-    std.testing.expectEqual(@as(?usize, 1), pos);
-    std.testing.expectEqual(@as(?usize, null), findMatches(&pos, haystack, &[_]u8{ 11, 12, 13, 14 }));
+    try expectEqual(@as(?usize, null), findMatches(&pos, haystack, &[_]u8{ 11, 12, 13, 14, 15 }, 1));
+    try expectEqual(@as(?usize, 1), pos);
+    try expectEqual(@as(?usize, null), findMatches(&pos, haystack, &[_]u8{ 11, 12, 13, 14 }, 1));
     pos = 0;
 
     // Calling function after a simluated match, where our needle is in the adjusted buffer.
     pos = 2;
-    std.testing.expectEqual(@as(?usize, 2), findMatches(&pos, haystack, &[_]u8{ 13, 14 }));
+    try expectEqual(@as(?usize, 2), findMatches(&pos, haystack, &[_]u8{ 13, 14 }, 1));
 
     // Needle is not in buffer
     pos = 0;
-    std.testing.expectEqual(@as(?usize, null), findMatches(&pos, haystack, &[_]u8{ 9, 5, 8, 7, 3 }));
-    std.testing.expectEqual(@as(?usize, 0), pos);
-    std.testing.expectEqual(@as(?usize, null), findMatches(&pos, haystack, &[_]u8{ 11, 12, 13, 14, 17 }));
-    std.testing.expectEqual(@as(?usize, 0), pos);
-    std.testing.expectEqual(@as(?usize, null), findMatches(&pos, haystack, &[_]u8{ 13, 13, 14 }));
-    std.testing.expectEqual(@as(?usize, 0), pos);
+    try expectEqual(@as(?usize, null), findMatches(&pos, haystack, &[_]u8{ 9, 5, 8, 7, 3 }, 1));
+    try expectEqual(@as(?usize, 0), pos);
+    try expectEqual(@as(?usize, null), findMatches(&pos, haystack, &[_]u8{ 11, 12, 13, 14, 17 }, 1));
+    try expectEqual(@as(?usize, 0), pos);
+    try expectEqual(@as(?usize, null), findMatches(&pos, haystack, &[_]u8{ 13, 13, 14 }, 1));
+    try expectEqual(@as(?usize, 0), pos);
 
     // Needle is larger than adjusted buffer, but not full buffer.
     pos = 3;
-    std.testing.expectEqual(@as(?usize, null), findMatches(&pos, haystack, &[_]u8{ 14, 15, 16 }));
+    try expectEqual(@as(?usize, null), findMatches(&pos, haystack, &[_]u8{ 14, 15, 16 }, 1));
+}
+
+test "find matches with variable byte alignment" {
+    var haystack: [100]u8 = undefined;
+    for (haystack) |*i, index| i.* = @intCast(u8, index);
+    const hay = haystack[0..];
+    var pos: usize = 0;
+
+    try expectEqual(@as(?usize, 4), findMatches(&pos, hay, &[_]u8{ 4, 5, 6 }, 4));
+    try expectEqual(@as(?usize, null), findMatches(&pos, hay, &[_]u8{ 4, 5, 6 }, 4));
+    pos = 0;
+
+    try expectEqual(@as(?usize, 0), findMatches(&pos, hay, hay, 30));
+    pos = 0;
+
+    try expectEqual(@as(?usize, null), findMatches(&pos, hay, &[_]u8{1}, 2));
+    try expectEqual(@as(?usize, 0), pos);
+    pos = 0;
+
+    try expectEqual(@as(?usize, 0), findMatches(&pos, hay, &[_]u8{0}, 4));
+    try expectEqual(@as(?usize, 1), pos);
+    pos = 0;
+
+    try expectEqual(@as(?usize, 8), findMatches(&pos, hay, &[_]u8{ 8, 9, 10, 11, 12, 13, 14, 15, 16 }, 8));
+    pos = 0;
 }

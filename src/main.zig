@@ -10,6 +10,7 @@ const Needle = @import("needle.zig").Needle;
 const call_fn_with_union_type = @import("needle.zig").call_fn_with_union_type;
 
 fn help() void {
+    warn("User must supply pid and (type + bit length). User may optionally supply a byte alignment.\n", .{});
     warn("Available types are: [i, u, f, s]\n", .{});
     warn("i: signed integer   - Available with bit lengths [8, 16, 32, 64]\n", .{});
     warn("u: unsigned integer - Available with bit lengths [8, 16, 32, 64]\n", .{});
@@ -32,6 +33,16 @@ pub fn main() anyerror!void {
     var needle_typeinfo = input.parseStringForType(std.mem.span(os.argv[2])) catch |err| {
         warn("Failed parsing search type \"{s}\". {}\n", .{ os.argv[2], err });
         os.exit(2);
+    };
+
+    const byte_alignment: u8 = blk: {
+        const default = 4;
+        if (os.argv.len > 3) {
+            const result = std.fmt.parseInt(u8, std.mem.span(os.argv[3]), 10) catch default;
+            if (result < 1) break :blk 1;
+            break :blk result;
+        }
+        break :blk default;
     };
 
     const allocator = std.heap.page_allocator; // Perhaps we should link with libc to use malloc
@@ -67,7 +78,7 @@ pub fn main() anyerror!void {
     const needle: []const u8 = try input.askUserForValue(&needle_typeinfo);
 
     const initial_scan_start = std.time.milliTimestamp();
-    var potential_addresses = (memory.parseSegments(allocator, pid, &memory_segments, needle) catch |err| {
+    var potential_addresses = (memory.parseSegments(allocator, pid, &memory_segments, needle, byte_alignment) catch |err| {
         switch (err) {
             error.InsufficientPermission => {
                 print("Insufficient permission to read memory from \"{s}\" (pid {})\n", .{ process_name, pid });
