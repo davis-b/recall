@@ -14,7 +14,7 @@ const Segment = struct {
 pub fn readMemMap(allocator: *std.mem.Allocator, pid: os.pid_t) !Segments {
     var path_buffer = [_]u8{0} ** 30;
     var fbs = std.io.fixedBufferStream(path_buffer[0..]);
-    try std.fmt.format(fbs.outStream(), "/proc/{}/maps", .{pid});
+    try std.fmt.format(fbs.writer(), "/proc/{}/maps", .{pid});
     const path = path_buffer[0..fbs.pos];
 
     const fd = try os.open(path, 0, os.O_RDONLY);

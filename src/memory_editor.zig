@@ -13,17 +13,17 @@ pub fn main() anyerror!u8 {
         return 2;
     }
     const pid = std.fmt.parseInt(os.pid_t, std.mem.span(os.argv[1]), 10) catch |err| {
-        warn("Failed parsing PID \"{}\". {}\n", .{ os.argv[1], err });
+        warn("Failed parsing PID \"{s}\". {}\n", .{ os.argv[1], err });
         return 2;
     };
 
     var needle = input.parseStringForType(std.mem.span(os.argv[2])) catch |err| {
-        warn("Failed parsing type \"{}\". {}\n", .{ os.argv[2], err });
+        warn("Failed parsing type \"{s}\". {}\n", .{ os.argv[2], err });
         return 2;
     };
 
     const addr = std.fmt.parseInt(usize, std.mem.span(os.argv[3]), 10) catch |err| {
-        warn("Failed parsing address \"{}\". {}\n", .{ os.argv[3], err });
+        warn("Failed parsing address \"{s}\". {}\n", .{ os.argv[3], err });
         return 2;
     };
 

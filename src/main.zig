@@ -10,14 +10,13 @@ const Needle = @import("needle.zig").Needle;
 const call_fn_with_union_type = @import("needle.zig").call_fn_with_union_type;
 
 fn help() void {
-    warn("User must supply pid and (type + bit length)\n", .{});
     warn("Available types are: [i, u, f, s]\n", .{});
     warn("i: signed integer   - Available with bit lengths [8, 16, 32, 64]\n", .{});
     warn("u: unsigned integer - Available with bit lengths [8, 16, 32, 64]\n", .{});
     warn("f: float            - Available with bit lengths [16, 32, 64] \n", .{});
     warn("s: string           - Does not use a bit length\n", .{});
     warn("\n", .{});
-    warn("Example Usage: {} 5005 u32\n", .{os.argv[0]});
+    warn("Example Usage: {s} 5005 u32\n", .{os.argv[0]});
 }
 
 pub fn main() anyerror!void {
@@ -27,11 +26,11 @@ pub fn main() anyerror!void {
     }
 
     const pid = std.fmt.parseInt(os.pid_t, std.mem.span(os.argv[1]), 10) catch |err| {
-        warn("Failed parsing PID \"{}\". {}\n", .{ os.argv[1], err });
+        warn("Failed parsing PID \"{s}\". {}\n", .{ os.argv[1], err });
         os.exit(2);
     };
     var needle_typeinfo = input.parseStringForType(std.mem.span(os.argv[2])) catch |err| {
-        warn("Failed parsing search type \"{}\". {}\n", .{ os.argv[2], err });
+        warn("Failed parsing search type \"{s}\". {}\n", .{ os.argv[2], err });
         os.exit(2);
     };
 
@@ -54,14 +53,14 @@ pub fn main() anyerror!void {
     defer if (process_name) |pn| allocator.free(pn);
 
     if (memory_segments.items.len == 0) {
-        print("No memory segments found for \"{}\", pid {}. Exiting\n", .{ process_name, pid });
+        print("No memory segments found for \"{s}\", pid {}. Exiting\n", .{ process_name, pid });
         return;
     }
     var total_memory: usize = 0;
     for (memory_segments.items) |i, n| {
         total_memory += i.len;
     }
-    print("{} is using {} memory segments for a total of ", .{ process_name, memory_segments.items.len });
+    print("{s} is using {} memory segments for a total of ", .{ process_name, memory_segments.items.len });
     printHumanReadableByteCount(total_memory);
     print("\n", .{});
 
@@ -71,7 +70,7 @@ pub fn main() anyerror!void {
     var potential_addresses = (memory.parseSegments(allocator, pid, &memory_segments, needle) catch |err| {
         switch (err) {
             error.InsufficientPermission => {
-                print("Insufficient permission to read memory from \"{}\" (pid {})\n", .{ process_name, pid });
+                print("Insufficient permission to read memory from \"{s}\" (pid {})\n", .{ process_name, pid });
                 return;
             },
             else => return err,
@@ -146,7 +145,7 @@ fn handleFinalMatch(needle: Needle, pid: os.pid_t, needle_address: usize) !void 
             // We are intentionally re-using parts of buffer here for both parameters. The function is safe for this use case.
             str_len = try call_fn_with_union_type(needle, anyerror!usize, printToBufferAs, .{ buffer[0..needle.size()], buffer[0..] });
         }
-        print("value is: {}\n", .{buffer[0..str_len]});
+        print("value is: {s}\n", .{buffer[0..str_len]});
     }
 }
 
@@ -187,7 +186,7 @@ fn printHumanReadableByteCount(bytes: usize) void {
 fn find_process_name(allocator: *std.mem.Allocator, pid: os.pid_t) ![]u8 {
     var path_buffer = [_]u8{0} ** 30;
     var fbs = std.io.fixedBufferStream(path_buffer[0..]);
-    try std.fmt.format(fbs.outStream(), "/proc/{}/comm", .{pid});
+    try std.fmt.format(fbs.writer(), "/proc/{}/comm", .{pid});
     const path = path_buffer[0..fbs.pos];
 
     const fd = try os.open(path, 0, os.O_RDONLY);

@@ -77,7 +77,7 @@ var user_value_buffer = [_]u8{0} ** 128;
 /// Eventually, we return the bytes representing the input value for the requested type.
 /// The bytes returned are global to this module and are not owned by the caller.
 pub fn askUserForValue(needle: *Needle) ![]u8 {
-    print("Please enter value for {} ", .{std.meta.tagName(needle.*)});
+    print("Please enter value for {s} ", .{std.meta.tagName(needle.*)});
     call_fn_with_union_type(needle.*, void, printMinMax, .{});
     print("> ", .{});
     const maybe_input = getStdin();
@@ -152,29 +152,29 @@ fn stringToType_internal(comptime T: type, string: []const u8, needle: *Needle) 
 test "string to type" {
     var needle = Needle{ .u8 = 0 };
     // Invalid strings.
-    testing.expectError(error.Overflow, stringToType("-100", &needle));
-    testing.expectError(error.Overflow, stringToType("256", &needle));
-    testing.expectError(error.InvalidCharacter, stringToType("100 ", &needle));
+    try testing.expectError(error.Overflow, stringToType("-100", &needle));
+    try testing.expectError(error.Overflow, stringToType("256", &needle));
+    try testing.expectError(error.InvalidCharacter, stringToType("100 ", &needle));
     // Valid string.
     var byte_repr = try stringToType("255", &needle);
-    testing.expect(std.mem.eql(u8, byte_repr, &[_]u8{0xff}));
+    try testing.expect(std.mem.eql(u8, byte_repr, &[_]u8{0xff}));
     // Prove function changes needle value.
-    testing.expectEqual(needle.u8, 255);
+    try testing.expectEqual(needle.u8, 255);
 
     // stringToType returns an array backed by the needle itself.
     needle = Needle{ .i16 = 0 };
     byte_repr = try stringToType("-1000", &needle);
     // Sanity check.
     var input_needle_value: i16 = -1000;
-    testing.expectEqual(needle.i16, input_needle_value);
+    try testing.expectEqual(needle.i16, input_needle_value);
     var expected_bytes = std.mem.asBytes(&input_needle_value);
     // Establish expected byte representation.
-    testing.expect(std.mem.eql(u8, byte_repr, expected_bytes));
+    try testing.expect(std.mem.eql(u8, byte_repr, expected_bytes));
     // Prove byte_repr is backed by needle, even as needle changes.
     needle.i16 += 1;
-    testing.expectEqual(needle.i16, -999);
+    try testing.expectEqual(needle.i16, -999);
     // We have modified needle only, yet byte_repr will change as well.
-    testing.expect(!std.mem.eql(u8, byte_repr, expected_bytes));
+    try testing.expect(!std.mem.eql(u8, byte_repr, expected_bytes));
 }
 
 var stdin_buffer = [_]u8{0} ** 100;
