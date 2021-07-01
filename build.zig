@@ -17,7 +17,7 @@ pub fn build(b: *Builder) void {
     exe.setBuildMode(mode);
     exe.install();
 
-    const memedit = b.addExecutable("memset", "src/memory_editor.zig");
+    const memedit = b.addExecutable("rewrite", "src/memory_writer.zig");
     memedit.setTarget(target);
     memedit.setBuildMode(mode);
     memedit.install();

@@ -1,3 +1,5 @@
+/// This is a standalone executable.
+/// This program writes user supplied data to a given memory address.
 const std = @import("std");
 const os = std.os;
 const warn = std.debug.warn;
