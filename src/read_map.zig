@@ -20,16 +20,16 @@ pub fn readMemMap(allocator: *std.mem.Allocator, pid: os.pid_t) !Segments {
     const fd = try os.open(path, 0, os.O_RDONLY);
     defer os.close(fd);
 
-    return try parseMap(allocator, fd);
-}
-
-fn parseMap(allocator: *std.mem.Allocator, fd: os.fd_t) !Segments {
-    var segments = Segments.init(allocator);
-    errdefer segments.deinit();
-
     var file = std.fs.File{ .handle = fd };
     const map_data = try file.readToEndAlloc(allocator, 1_024_000);
     defer allocator.free(map_data);
+
+    return try parseMap(allocator, map_data);
+}
+
+fn parseMap(allocator: *std.mem.Allocator, map_data: []u8) !Segments {
+    var segments = Segments.init(allocator);
+    errdefer segments.deinit();
 
     // map_data's line structure:
     // start-end, perms, data, time, data, maybe_name
