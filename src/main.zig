@@ -106,24 +106,11 @@ pub fn main() anyerror!void {
 fn findMatch(needle: *Needle, pid: os.pid_t, potential_addresses: *memory.Addresses) !?usize {
     var justPrintedAddresses = false;
     while (potential_addresses.items.len > 1) {
-        if (!justPrintedAddresses) {
-            print("Potential addresses: {}\n", .{potential_addresses.items.len});
-            if (potential_addresses.items.len < 5) {
-                for (potential_addresses.items) |pa| print("potential addr: {} ({x}) \n", .{ pa, pa });
-            }
+        print("Potential addresses: {}\n", .{potential_addresses.items.len});
+        if (potential_addresses.items.len < 5) {
+            for (potential_addresses.items) |pa| print("potential addr: {} ({x}) \n", .{ pa, pa });
         }
-        const needle_bytes: []const u8 = input.askUserForValue(needle) catch |err| {
-            switch (err) {
-                error.NoInputGiven => {
-                    for (potential_addresses.items) |i, index| print("#{}: {} ({x})\n", .{ index, i, i });
-                    print("\n", .{});
-                    justPrintedAddresses = true;
-                },
-                error.Overflow, error.InvalidCharacter => warn("{}\n\n", .{err}),
-            }
-            continue;
-        };
-        justPrintedAddresses = false;
+        const needle_bytes = getNewNeedle(needle, potential_addresses.items);
         try memory.pruneAddresses(pid, needle_bytes, potential_addresses);
     }
     if (potential_addresses.items.len == 1) {
@@ -131,6 +118,23 @@ fn findMatch(needle: *Needle, pid: os.pid_t, potential_addresses: *memory.Addres
     } else {
         return null;
     }
+}
+
+/// Returns the bytes for a new needle from the user.
+/// Will not return until a valid needle value is given.
+/// This may result in multiple requests to the user for a needle value.
+fn getNewNeedle(needle: *Needle, potential_addresses: []usize) []const u8 {
+    const needle_bytes: []const u8 = input.askUserForValue(needle) catch |err| {
+        switch (err) {
+            error.NoInputGiven => {
+                for (potential_addresses) |i, index| print("#{}: {} ({x})\n", .{ index, i, i });
+                print("\n", .{});
+            },
+            error.Overflow, error.InvalidCharacter => warn("{}\n\n", .{err}),
+        }
+        return getNewNeedle(needle, potential_addresses);
+    };
+    return needle_bytes;
 }
 
 /// Allows user to repeatedly view the value located at the needle address.
