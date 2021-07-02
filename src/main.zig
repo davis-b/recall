@@ -95,7 +95,7 @@ pub fn main() anyerror!void {
 
     const maybe_final_address = try findMatch(&needle_typeinfo, pid, &potential_addresses);
     if (maybe_final_address) |addr| {
-        print("Match found at: {} ({X})\n", .{ addr, addr });
+        print("Match found at: {} ({x})\n", .{ addr, addr });
         try handleFinalMatch(needle_typeinfo, pid, addr);
     } else {
         print("No match found. Exiting.\n", .{});
@@ -104,20 +104,26 @@ pub fn main() anyerror!void {
 
 /// Using user input, filters potential addresses until we have a single one remaining.
 fn findMatch(needle: *Needle, pid: os.pid_t, potential_addresses: *memory.Addresses) !?usize {
+    var justPrintedAddresses = false;
     while (potential_addresses.items.len > 1) {
-        print("Potential addresses: {}\n", .{potential_addresses.items.len});
-        if (potential_addresses.items.len < 5) {
-            for (potential_addresses.items) |pa| print("potential addr: {} ({X}) \n", .{ pa, pa });
+        if (!justPrintedAddresses) {
+            print("Potential addresses: {}\n", .{potential_addresses.items.len});
+            if (potential_addresses.items.len < 5) {
+                for (potential_addresses.items) |pa| print("potential addr: {} ({x}) \n", .{ pa, pa });
+            }
         }
         const needle_bytes: []const u8 = input.askUserForValue(needle) catch |err| {
             switch (err) {
                 error.NoInputGiven => {
-                    for (potential_addresses.items) |i, index| print("#{}: {} ({X})\n", .{ index, i, i });
+                    for (potential_addresses.items) |i, index| print("#{}: {} ({x})\n", .{ index, i, i });
+                    print("\n", .{});
+                    justPrintedAddresses = true;
                 },
                 error.Overflow, error.InvalidCharacter => warn("{}\n\n", .{err}),
             }
             continue;
         };
+        justPrintedAddresses = false;
         try memory.pruneAddresses(pid, needle_bytes, potential_addresses);
     }
     if (potential_addresses.items.len == 1) {
