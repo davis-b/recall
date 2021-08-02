@@ -2,8 +2,7 @@ const builtin = @import("builtin");
 const std = @import("std");
 const os = std.os;
 
-const USING_C = !true;
-pub const iovec = if (USING_C)
+pub const iovec = if (builtin.link_libc)
     @cImport({
         @cInclude("sys/uio.h");
     }).iovec
